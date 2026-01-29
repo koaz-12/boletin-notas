@@ -21,7 +21,7 @@ const CloudStorage = {
         }
     },
 
-    saveData: async function (jsonData) {
+    saveData: async function (jsonData, createHistory = false) {
         if (!this.isConfigured) return { success: false, error: "Cloud not configured" };
 
         try {
@@ -74,6 +74,13 @@ const CloudStorage = {
             // Store ID locally just in case, but User Query is primary
             localStorage.setItem('minerd_cloud_id', cloudObject.id);
 
+            // --- HISTORY SNAPSHOT TRIGGER ---
+            if (user && createHistory) {
+                const type = (createHistory === true) ? 'manual' : createHistory;
+                // Run in background (don't await) to speed up UI response
+                this.createHistorySnapshot(user, jsonString, type);
+            }
+
             console.log("☁️ Saved to Cloud: ", cloudObject.id);
             return { success: true, id: cloudObject.id };
 
@@ -108,14 +115,21 @@ const CloudStorage = {
                 const existingId = localStorage.getItem('minerd_cloud_id');
                 if (existingId) {
                     const query = new Parse.Query(BoletinData);
-                    object = await query.get(existingId);
+                    try {
+                        object = await query.get(existingId);
+                    } catch (err) {
+                        // Not found
+                    }
                 }
             }
 
             if (object) {
                 const jsonString = object.get("fullData");
                 if (jsonString) {
-                    return { success: true, data: JSON.parse(jsonString), empty: false };
+                    const data = JSON.parse(jsonString);
+                    // Add timestamp from metadata if not in JSON
+                    if (!data.timestamp) data.timestamp = object.updatedAt;
+                    return { success: true, data: data, empty: false };
                 } else {
                     return { success: true, data: null, empty: true };
                 }
@@ -129,6 +143,102 @@ const CloudStorage = {
                 location.reload();
             }
             return { success: false, error: error.message };
+        }
+    },
+
+    // --- TIME MACHINE (HISTORY) ---
+
+    // type = 'manual' | 'auto'
+    createHistorySnapshot: async function (user, dataString, type = 'manual') {
+        if (!user) return;
+
+        // Throttling for Auto-Save: Only once every 24h
+        if (type === 'auto') {
+            const lastAuto = localStorage.getItem('minerd_last_auto_snapshot');
+            const now = Date.now();
+            if (lastAuto && (now - parseInt(lastAuto)) < (24 * 60 * 60 * 1000)) {
+                // Skipped (Less than 24h)
+                return;
+            }
+            localStorage.setItem('minerd_last_auto_snapshot', now.toString());
+        }
+
+        try {
+            console.log(`🕰️ Creating History Snapshot (${type})...`);
+            const BoletinHistory = Parse.Object.extend("BoletinHistory");
+            const history = new BoletinHistory();
+
+            history.set("owner", user);
+            history.set("fullData", dataString);
+            history.set("device", navigator.userAgent);
+            history.set("snapshotType", type);
+
+            // ACL (Private)
+            const acl = new Parse.ACL(user);
+            acl.setPublicReadAccess(false);
+            history.setACL(acl);
+
+            await history.save();
+            console.log("✅ History Snapshot Saved:", history.id);
+
+            // Prune old
+            this.pruneHistoryLimit(user);
+
+        } catch (e) {
+            console.error("❌ Failed to create history snapshot:", e);
+        }
+    },
+
+    pruneHistoryLimit: async function (user) {
+        try {
+            const query = new Parse.Query("BoletinHistory");
+            query.equalTo("owner", user);
+            query.descending("createdAt");
+            query.skip(15); // Keep last 15 versions
+            const oldRecords = await query.find();
+
+            if (oldRecords.length > 0) {
+                console.log(`🧹 Pruning ${oldRecords.length} old history records...`);
+                Parse.Object.destroyAll(oldRecords);
+            }
+        } catch (e) {
+            console.warn("Prune error:", e);
+        }
+    },
+
+    fetchHistory: async function () {
+        if (!Parse.User.current()) return { success: false, error: "No user" };
+
+        try {
+            const query = new Parse.Query("BoletinHistory");
+            query.equalTo("owner", Parse.User.current());
+            query.descending("createdAt");
+            query.limit(20);
+            query.select("createdAt", "device", "snapshotType");
+
+            const results = await query.find();
+
+            const historyList = results.map(r => ({
+                id: r.id,
+                date: r.createdAt,
+                device: r.get("device"),
+                type: r.get("snapshotType") || 'manual'
+            }));
+
+            return { success: true, list: historyList };
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    },
+
+    loadHistoryItem: async function (id) {
+        try {
+            const query = new Parse.Query("BoletinHistory");
+            const record = await query.get(id);
+            const jsonString = record.get("fullData");
+            return { success: true, data: JSON.parse(jsonString) };
+        } catch (e) {
+            return { success: false, error: e.message };
         }
     }
 };

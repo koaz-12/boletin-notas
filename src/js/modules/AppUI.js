@@ -32,7 +32,8 @@ export const AppUI = {
                 if (typeof store.exportFullBackup !== 'function') return;
 
                 const backup = store.exportFullBackup();
-                const result = await CloudStorage.saveData(backup);
+                // Pass 'auto' to attempt throttled history snapshot
+                const result = await CloudStorage.saveData(backup, 'auto');
 
                 if (spinner) spinner.classList.add('hidden');
 
@@ -72,7 +73,8 @@ export const AppUI = {
 
                 // Logic
                 const backup = store.exportFullBackup();
-                const result = await CloudStorage.saveData(backup);
+                // Pass true to create history snapshot
+                const result = await CloudStorage.saveData(backup, true);
 
                 // UI Result
                 spinner?.classList.add('hidden');

@@ -55,6 +55,15 @@ export const AuthManager = {
             });
         }
 
+        // History Button
+        const btnHistory = document.getElementById('menu-history');
+        if (btnHistory) {
+            btnHistory.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.openHistoryModal();
+            });
+        }
+
         // Settings Button (Placeholder)
         // Settings Button & Logic
         const btnSettings = document.getElementById('menu-settings');
@@ -547,6 +556,113 @@ export const AuthManager = {
                 text.classList.add('text-gray-500');
                 btn.classList.remove('bg-green-50', 'border-green-200');
                 break;
+        }
+    },
+
+    // --- TIME MACHINE UI ---
+
+    openHistoryModal: async function () {
+        const modal = document.getElementById('history-modal');
+        const listContainer = document.getElementById('history-list');
+        const btnClose = document.getElementById('btn-close-history');
+        const btnCloseFooter = document.getElementById('btn-close-history-footer');
+
+        if (!modal) return;
+
+        // Show Modal
+        modal.classList.remove('hidden');
+
+        // Close Logic
+        const close = () => modal.classList.add('hidden');
+        btnClose.onclick = close;
+        btnCloseFooter.onclick = close;
+
+        // Fetch History
+        listContainer.innerHTML = `
+            <div class="text-center py-8 text-gray-500 flex flex-col items-center">
+                <div class="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                <span>Cargando versiones...</span>
+            </div>
+        `;
+
+        const result = await CloudStorage.fetchHistory();
+
+        if (result.success) {
+            this.renderHistoryList(result.list, listContainer, close);
+        } else {
+            listContainer.innerHTML = `
+                <div class="text-center py-8 text-red-500">
+                    ❌ Error cargando historial: ${result.error}
+                </div>
+            `;
+        }
+    },
+
+    renderHistoryList: function (list, container, closeCallback) {
+        if (!list || list.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-gray-400 py-12 flex flex-col items-center">
+                     <span class="text-2xl mb-2">🕸️</span>
+                     <span class="italic">No hay historial disponible.</span>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = '';
+
+        list.forEach(item => {
+            const date = new Date(item.date);
+            const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+            const isAuto = item.type === 'auto';
+            const icon = isAuto ? '🤖' : '💾';
+            const label = isAuto ? 'Auto-Guardado' : 'Manual';
+            const colorClass = isAuto ? 'bg-gray-50 border-gray-200' : 'bg-white border-indigo-100 shadow-sm';
+
+            const div = document.createElement('div');
+            div.className = `p-3 rounded-lg border ${colorClass} flex justify-between items-center hover:bg-gray-100 transition-colors`;
+            div.innerHTML = `
+                <div class="flex flex-col">
+                    <span class="font-bold text-gray-700 text-sm flex items-center gap-2">
+                        <span>${icon}</span> ${label}
+                    </span>
+                    <span class="text-xs text-gray-500">${formattedDate}</span>
+                    <span class="text-[10px] text-gray-400 truncate max-w-[200px]">${item.device || 'Desconocido'}</span>
+                </div>
+                <button class="px-3 py-1.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded hover:bg-indigo-100 transition-colors restore-btn">
+                    Restaurar
+                </button>
+            `;
+
+            // Use closure to bind click
+            const btnRestore = div.querySelector('.restore-btn');
+            btnRestore.onclick = () => this.restoreHistoryItem(item.id, closeCallback);
+
+            container.appendChild(div);
+        });
+    },
+
+    restoreHistoryItem: async function (id, closeCallback) {
+        if (!confirm("⚠️ ¿Estás seguro de restaurar esta versión?\n\nSe sobrescribirán TODOS los datos actuales con la versión seleccionada.")) {
+            return;
+        }
+
+        Toast.show("⏳ Restaurando versión...", "info");
+
+        const result = await CloudStorage.loadHistoryItem(id);
+
+        if (result.success && result.data) {
+            if (store.importFullBackup(result.data)) {
+                Toast.show("✅ Versión restaurada con éxito", "success");
+                if (closeCallback) closeCallback();
+
+                // Refresh UI
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                Toast.show("❌ Error al importar los datos", "error");
+            }
+        } else {
+            Toast.show("❌ Error descargando versión: " + (result.error || "Datos corruptos"), "error");
         }
     }
 };

@@ -56,6 +56,11 @@
                     class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                     <span>⚙️</span> Configuración
                 </button>
+                <!-- History -->
+                <button id="menu-history"
+                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                    <span>🕰️</span> Historial
+                </button>
                 <div class="border-t border-gray-100 my-1"></div>
                 <!-- Logout -->
                 <button id="menu-logout"
@@ -1222,8 +1227,54 @@
         </div>
     </div>
 
-    <!-- Scripts -->
-    <!-- Main App Logic (Modular) -->
+    <!-- TIme Machine Modal -->
+    <div id="history-modal"
+        class="fixed inset-0 z-[6000] hidden flex items-center justify-center bg-gray-900 bg-opacity-75 backdrop-blur-sm">
+        <div class="bg-white rounded-lg shadow-2xl w-[600px] max-w-full flex flex-col max-h-[85vh]">
+
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-indigo-50 rounded-t-lg">
+                <h3 class="text-lg font-bold text-indigo-900 flex items-center gap-2">
+                    <span>🕰️</span> Máquina del Tiempo
+                </h3>
+                <button id="btn-close-history" class="text-gray-400 hover:text-gray-600 focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Content List -->
+            <div class="p-6 overflow-y-auto flex-1 bg-gray-50">
+
+                <div
+                    class="mb-4 bg-blue-50 border border-blue-100 p-3 rounded text-xs text-blue-800 flex gap-2 items-start">
+                    <span class="text-lg">ℹ️</span>
+                    <p>Aquí puedes restaurar versiones anteriores de tu boletín.
+                        <br><strong>Nota:</strong> Solo se guardan copias cuando haces clic manualmente en "Guardar en
+                        Nube" (o una vez al día automáticamente).
+                    </p>
+                </div>
+
+                <div id="history-list" class="space-y-3">
+                    <!-- Items inserted by JS -->
+                    <div class="text-center text-gray-400 py-12 flex flex-col items-center">
+                        <span class="text-2xl mb-2">🕸️</span>
+                        <span class="italic">No hay historial disponible.</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 py-4 border-t border-gray-100 bg-white rounded-b-lg flex justify-end items-center">
+                <button id="btn-close-history-footer"
+                    class="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 font-medium">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
     <script type="module" src="src/js/app.js?v=53"></script>
 </body>
 
