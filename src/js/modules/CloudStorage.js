@@ -31,8 +31,10 @@ const CloudStorage = {
 
             if (user) {
                 // 1. Authenticated User Logic
+                // 1. Authenticated User Logic
                 const query = new Parse.Query(BoletinData);
                 query.equalTo("owner", user);
+                query.descending("createdAt"); // Get latest
                 try {
                     cloudObject = await query.first(); // Find user's object
                     if (!cloudObject) {
@@ -91,6 +93,35 @@ const CloudStorage = {
                 Parse.User.logOut();
                 location.reload();
             }
+
+            // Retry Strategy: If update failed (e.g. permission/lock), try creating a NEW object
+            if (this.isConfigured && Parse.User.current() && error.code !== 209) {
+                try {
+                    console.warn("⚠️ Update failed, trying to create NEW cloud object...", error.message);
+                    const BoletinData = Parse.Object.extend("BoletinData");
+                    const retryObject = new BoletinData();
+                    const user = Parse.User.current();
+                    retryObject.set("owner", user);
+
+                    // Force ACL
+                    const acl = new Parse.ACL(user);
+                    acl.setPublicReadAccess(false);
+                    acl.setPublicWriteAccess(false);
+                    retryObject.setACL(acl);
+
+                    retryObject.set("fullData", JSON.stringify(jsonData));
+                    retryObject.set("lastUpdate", new Date());
+                    retryObject.set("clientVersion", "v2 (Retry)");
+
+                    await retryObject.save();
+                    console.log("✅ Auto-Retry successful: Created new object", retryObject.id);
+                    return { success: true, id: retryObject.id };
+
+                } catch (retryError) {
+                    console.error("❌ Retry also failed:", retryError);
+                }
+            }
+
             return { success: false, error: error.message };
         }
     },

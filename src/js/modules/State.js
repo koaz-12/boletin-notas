@@ -601,24 +601,32 @@ export class AppState {
             // Construct a virtual V2 structure
             const currentId = sectionManager.currentSectionId || Date.now().toString();
 
-            // Ensure Section Exists
+            // Ensure Section Exists OR Update Name
             let currentSec = sectionManager.sections.find(s => s.id === currentId);
             if (!currentSec) {
                 currentSec = { id: currentId, name: "Importado (V1)", grade: backupObj.grade ? String(backupObj.grade) : "1" };
                 sectionManager.sections.push(currentSec);
-                localStorage.setItem('minerd_sections_index', JSON.stringify(sectionManager.sections));
-                sectionManager.setCurrent(currentId);
+            } else {
+                // Force rename to mark as imported (critical for sync protection)
+                currentSec.name = "Importado (V1)";
             }
+            localStorage.setItem('minerd_sections_index', JSON.stringify(sectionManager.sections));
+            sectionManager.setCurrent(currentId);
 
             // Validate Data Structure before saving
             // V2 Expects wrapper: { version: 2, state: { ... } }
             const v2Data = {
                 version: 2,
-                timestamp: Date.now(),
+                // Add 10 seconds offset to GUARANTEE being "newer" than any recent cloud sync
+                timestamp: Date.now() + 10000,
                 state: backupObj
             };
 
             localStorage.setItem('minerd_data_' + currentSec.id, JSON.stringify(v2Data));
+
+            // === IMPORT LOCK: Prevent Cloud Sync from Overwriting ===
+            localStorage.setItem('minerd_import_lock', Date.now().toString());
+            console.log("🔒 Import Lock Set. Cloud Sync will respect this.");
 
             // Reload
             window.location.reload();

@@ -21,6 +21,18 @@ export { store, Toast };
 
 // Bootstrap Application
 document.addEventListener('DOMContentLoaded', () => {
+    // === PRE-INIT: Check for V1 Import Lock ===
+    const importLock = localStorage.getItem('minerd_import_lock');
+    if (importLock) {
+        const lockAge = (Date.now() - parseInt(importLock, 10)) / 1000;
+        if (lockAge < 300) {
+            console.log(`🔒 [App] Import Lock ACTIVE (${lockAge.toFixed(1)}s). Setting global flag.`);
+            window.__MINERD_IMPORT_LOCK__ = true;
+        } else {
+            localStorage.removeItem('minerd_import_lock');
+        }
+    }
+
     // 1. Initialize Subsystems
     CloudStorage.init();
     AuthManager.init(); // <--- AUTHENTICATION START

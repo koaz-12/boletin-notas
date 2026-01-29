@@ -334,6 +334,62 @@ export const AuthManager = {
     syncUserData: async function () {
         this.updateSyncStatus('syncing'); // VISUAL FEEDBACK START
 
+        // === GLOBAL IMPORT LOCK CHECK (Set by app.js) ===
+        if (window.__MINERD_IMPORT_LOCK__) {
+            console.log("🔒 [Sync] Global Import Lock detected. Uploading local data instead of pulling from cloud.");
+            window.__MINERD_IMPORT_LOCK__ = false; // Clear flag
+            localStorage.removeItem('minerd_import_lock');
+
+            const localBackup = store.exportFullBackup();
+            const saveResult = await CloudStorage.saveData(localBackup, 'manual');
+
+            if (saveResult.success) {
+                this.updateSyncStatus('success', 'Importación Guardada');
+                Toast.show("✅ Respaldo V1 sincronizado a la nube.", "success");
+            } else {
+                this.updateSyncStatus('error');
+                Toast.show("⚠️ Error guardando importación: " + saveResult.error, "error");
+            }
+            return; // EXIT
+        }
+
+        // === IMPORT LOCK CHECK ===
+        // If a V1 import just happened, skip cloud pull and upload local data instead
+        const importLock = localStorage.getItem('minerd_import_lock');
+        console.log(`[Sync] Import Lock Check: ${importLock ? 'Found' : 'Not Found'}`);
+
+        if (importLock) {
+            const lockTime = parseInt(importLock, 10);
+            const now = Date.now();
+            const ageSeconds = (now - lockTime) / 1000;
+
+            // Allow 5 minutes (300 seconds) for user to log in after import
+            if (ageSeconds < 300) {
+                console.log(`🔒 Import Lock Active (${ageSeconds.toFixed(1)}s old). Uploading local data instead of pulling from cloud.`);
+                // Clear the lock
+                localStorage.removeItem('minerd_import_lock');
+
+                // Force upload local data
+                const localBackup = store.exportFullBackup();
+                console.log(`[Sync] Uploading local backup with ${localBackup.sections?.length || 0} sections`);
+
+                const saveResult = await CloudStorage.saveData(localBackup, 'manual');
+
+                if (saveResult.success) {
+                    this.updateSyncStatus('success', 'Importación Guardada');
+                    Toast.show("✅ Respaldo V1 sincronizado a la nube.", "success");
+                } else {
+                    this.updateSyncStatus('error');
+                    Toast.show("⚠️ Error guardando importación: " + saveResult.error, "error");
+                }
+                return; // EXIT - do not proceed with normal sync
+            } else {
+                console.log(`[Sync] Import Lock Expired (${ageSeconds.toFixed(1)}s old). Clearing.`);
+                // Lock expired, clear it
+                localStorage.removeItem('minerd_import_lock');
+            }
+        }
+
         const result = await CloudStorage.loadData();
 
         if (!result.success) {
@@ -362,14 +418,30 @@ export const AuthManager = {
         if (localBackup.data) {
             // Check any section for students
             Object.values(localBackup.data).forEach(secData => {
-                if (secData.studentList && secData.studentList.length > 0) hasStudents = true;
+                // Fix: Data might be wrapped in { state: ... } or flat depending on version
+                const state = secData.state || secData;
+                const list = state.studentList;
+
+                // Debug Log
+                console.log(`[Sync] Checking Section:`, { hasState: !!secData.state, listLen: list?.length });
+
+                if (list && list.length > 0) hasStudents = true;
             });
         }
 
-        const isLocalEmpty = !hasStudents;
+        // Failsafe: Check section names for "Importado" to prevent overwriting migrations
+        let hasImportedSection = false;
+        if (localBackup.sections && Array.isArray(localBackup.sections)) {
+            if (localBackup.sections.some(s => s.name && s.name.includes("Importado"))) {
+                hasImportedSection = true;
+                console.log("[Sync] Found 'Importado' section. Treating as NOT empty.");
+            }
+        }
+
+        const isLocalEmpty = !hasStudents && !hasImportedSection;
 
         console.log(`☁️ Sync Check: Local (${new Date(localTime).toLocaleTimeString()}) vs Cloud (${new Date(cloudTime).toLocaleTimeString()})`);
-        console.log(`☁️ Is Local Empty? ${isLocalEmpty}`);
+        console.log(`☁️ Is Local Empty? ${isLocalEmpty} (Students: ${hasStudents}, ImportFlag: ${hasImportedSection})`);
 
         // Case 0: Local is Empty -> ALWAYS Pull from Cloud (if cloud has data)
         if (isLocalEmpty && result.data && !result.empty) {
