@@ -159,9 +159,85 @@ export class AppState {
                 municipio: "",
                 section: ""
             },
-            studentInfo: { nombres: "", apellidos: "", id: "", order: "", obsGeneral: "" }
+            studentInfo: { nombres: "", apellidos: "", id: "", order: "", obsGeneral: "" },
+            trashBin: [] // New: Soft Delete Storage
         };
     }
+
+    // --- RECYCLE BIN ---
+    moveToTrash(studentName) {
+        if (!this.state.roster[studentName]) return false;
+
+        const studentData = JSON.parse(JSON.stringify(this.state.roster[studentName]));
+
+        const trashItem = {
+            deletedAt: Date.now(),
+            name: studentName,
+            originalData: studentData,
+            originalSection: this.state.schoolData.section
+        };
+
+        // Initialize trashBin if missing (legacy state)
+        if (!this.state.trashBin) this.state.trashBin = [];
+
+        this.state.trashBin.push(trashItem);
+        // We call deleteStudent logic internally but we don't have it exposed as a method 
+        // that skips the prompt here. Usually deleteStudent is in StudentManager.
+        // We need to manipulate the state directly here.
+
+        delete this.state.roster[studentName];
+        this.state.studentList = this.state.studentList.filter(n => n !== studentName);
+
+        // Reset current if we deleted the current one
+        if (this.state.currentStudent === studentName) {
+            this.state.currentStudent = this.state.studentList.length > 0 ? this.state.studentList[0] : "";
+        }
+
+        this.saveCurrentStudent(); // Save State
+        this.notify();
+        return true;
+    }
+
+    restoreFromTrash(deletedAt) {
+        if (!this.state.trashBin) return false;
+
+        const index = this.state.trashBin.findIndex(item => item.deletedAt === deletedAt);
+        if (index === -1) return false;
+
+        const item = this.state.trashBin[index];
+        let nameToRestore = item.name;
+
+        // Collision Check
+        let counter = 1;
+        while (this.state.studentList.includes(nameToRestore)) {
+            nameToRestore = `${item.name} (${counter})`;
+            counter++;
+        }
+
+        // Restore
+        this.state.roster[nameToRestore] = item.originalData;
+
+        // Ensure studentInfo name matches restored name
+        if (this.state.roster[nameToRestore].studentInfo) {
+            // Optional: Update internal name if renamed due to collision?
+            // Usually better to keep original info
+        }
+
+        this.state.studentList.push(nameToRestore);
+        this.state.trashBin.splice(index, 1);
+
+        this.state.studentList.sort((a, b) => a.localeCompare(b));
+        this.saveCurrentStudent();
+        this.notify();
+        return nameToRestore;
+    }
+
+    emptyTrash() {
+        this.state.trashBin = [];
+        this.saveCurrentStudent();
+        this.notify();
+    }
+
 
     getGradeConfig() {
         const lowerPrimary = [

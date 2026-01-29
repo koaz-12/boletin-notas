@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
     AppUI.init(); // Initialize UI bindings (Floating Controls, etc)
     Events.init();
     ObservationsManager.init();
+    StudentManager.initTrashEvents();
 
     // 2. Initial UI Config (Settings)
     const state = store.getState();

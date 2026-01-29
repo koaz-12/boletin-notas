@@ -62,6 +62,12 @@
                     class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
                     <span>🚪</span> Cerrar Sesión
                 </button>
+                <div class="border-t border-gray-100 my-1"></div>
+                <!-- Trash Bin -->
+                <button id="menu-trash"
+                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                    <span>🗑️</span> Papelera
+                </button>
             </div>
         </div>
     </div>
@@ -1165,6 +1171,46 @@
             <button id="btnCancelZip" class="text-red-500 hover:text-red-700 text-sm font-medium hover:underline">
                 Cancelar Operación
             </button>
+        </div>
+    </div>
+
+    <!-- Recycle Bin Modal -->
+    <div id="trash-modal"
+        class="fixed inset-0 z-[6000] hidden flex items-center justify-center bg-gray-900 bg-opacity-75 backdrop-blur-sm">
+        <div class="bg-white rounded-lg shadow-2xl w-[500px] max-w-full flex flex-col max-h-[80vh]">
+
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-lg">
+                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <span>🗑️</span> Papelera de Reciclaje
+                </h3>
+                <button id="btn-close-trash" class="text-gray-400 hover:text-gray-600 focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Content List -->
+            <div class="p-6 overflow-y-auto flex-1 bg-gray-50/50">
+                <div id="minerd-trash-list" class="space-y-2">
+                    <!-- Items inserted by JS -->
+                    <div class="text-center text-gray-400 py-8 italic">La papelera está vacía.</div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 py-4 border-t border-gray-100 bg-white rounded-b-lg flex justify-between items-center">
+                <button id="btn-empty-trash"
+                    class="text-red-500 hover:text-red-700 text-sm font-bold opacity-0 transition-opacity">
+                    Vaciar Papelera
+                </button>
+                <button id="btn-close-trash-footer"
+                    class="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 font-medium">
+                    Cerrar
+                </button>
+            </div>
         </div>
     </div>
 

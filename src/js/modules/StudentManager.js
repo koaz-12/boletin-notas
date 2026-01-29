@@ -26,7 +26,7 @@ export const StudentManager = {
         );
     },
 
-    // Delete Current Student
+    // Delete Current Student (Soft Delete)
     deleteCurrentStudent: () => {
         const state = store.getState();
         const current = state.currentStudent;
@@ -34,11 +34,15 @@ export const StudentManager = {
         if (!current) return;
 
         AppUI.confirm(
-            "Eliminar Estudiante",
-            `¿Estás seguro de ELIMINAR al estudiante "${current}"?\nSe perderán todas sus notas y observaciones.`,
+            "Mover a Papelera",
+            `¿Estás seguro de eliminar a "${current}"?\nPodrás restaurarlo desde la Papelera de Reciclaje.`,
             () => {
-                store.deleteStudent(current);
-                Toast.warning(`Estudiante "${current}" eliminado.`);
+                const success = store.moveToTrash(current);
+                if (success) {
+                    Toast.show(`🗑️ "${current}" movido a la papelera`, "info");
+                } else {
+                    Toast.show("❌ Error al eliminar", "error");
+                }
             },
             true // Is Danger
         );
@@ -111,5 +115,94 @@ export const StudentManager = {
         } else {
             nav.classList.add('hidden');
         }
+    },
+
+    // --- TRASH BIN UI ---
+    openTrashModal: () => {
+        const modal = document.getElementById('trash-modal');
+        if (modal) modal.classList.remove('hidden');
+        StudentManager.renderTrashList();
+    },
+
+    closeTrashModal: () => {
+        const modal = document.getElementById('trash-modal');
+        if (modal) modal.classList.add('hidden');
+    },
+
+    renderTrashList: () => {
+        const list = document.getElementById('minerd-trash-list');
+        const emptyBtn = document.getElementById('btn-empty-trash');
+        const state = store.getState();
+        const trash = state.trashBin || [];
+
+        if (!list) return;
+        list.innerHTML = '';
+
+        if (trash.length === 0) {
+            list.innerHTML = '<div class="text-center text-gray-400 py-8 italic">La papelera está vacía.</div>';
+            if (emptyBtn) {
+                emptyBtn.classList.add('opacity-0', 'pointer-events-none');
+            }
+            return;
+        }
+
+        if (emptyBtn) {
+            emptyBtn.classList.remove('opacity-0', 'pointer-events-none');
+        }
+
+        trash.forEach(item => {
+            const el = document.createElement('div');
+            el.className = "flex justify-between items-center p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow";
+
+            const dateStr = new Date(item.deletedAt).toLocaleString();
+
+            el.innerHTML = `
+                <div>
+                    <p class="font-bold text-gray-800">${item.name}</p>
+                    <p class="text-xs text-gray-400">Eliminado: ${dateStr}</p>
+                    <p class="text-xs text-gray-400">Sección: ${item.originalSection || '?'}</p>
+                </div>
+                <button class="btn-restore px-3 py-1 bg-green-50 text-green-700 hover:bg-green-100 rounded border border-green-200 text-sm font-medium flex items-center gap-1 transition-colors">
+                    <span>♻️</span> Restaurar
+                </button>
+            `;
+
+            const btnRestore = el.querySelector('.btn-restore');
+            btnRestore.onclick = () => {
+                const restoredName = store.restoreFromTrash(item.deletedAt);
+                if (restoredName) {
+                    Toast.show(`♻️ "${restoredName}" restaurado exitosamente`, "success");
+                    StudentManager.renderTrashList();
+                    // Reload navigator/list if we are in the same section
+                    StudentManager.updateNavigatorUI(store.getState());
+                }
+            };
+
+            list.appendChild(el);
+        });
+    },
+
+    initTrashEvents: () => {
+        const btnOpen = document.getElementById('menu-trash');
+        const btnClose = document.getElementById('btn-close-trash');
+        const btnCloseFooter = document.getElementById('btn-close-trash-footer');
+        const btnEmpty = document.getElementById('btn-empty-trash');
+
+        if (btnOpen) btnOpen.onclick = StudentManager.openTrashModal;
+        if (btnClose) btnClose.onclick = StudentManager.closeTrashModal;
+        if (btnCloseFooter) btnCloseFooter.onclick = StudentManager.closeTrashModal;
+
+        if (btnEmpty) btnEmpty.onclick = () => {
+            AppUI.confirm(
+                "Vaciar Papelera",
+                "¿Estás seguro de eliminar PERMANENTEMENTE estos estudiantes?\nNo podrás deshacer esta acción.",
+                () => {
+                    store.emptyTrash();
+                    StudentManager.renderTrashList();
+                    Toast.show("Papelera vaciada.", "info");
+                },
+                true
+            );
+        };
     }
 };
