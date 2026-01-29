@@ -337,7 +337,35 @@ export const AuthManager = {
         const localTime = localBackup.timestamp || 0;
         const cloudTime = (result.data && result.data.timestamp) ? result.data.timestamp : 0;
 
+        // Check if Local is effectively "Empty/New" (fresh install)
+        // A fresh install might have 0 sections or 1 empty default section and NO students.
+        let hasStudents = false;
+        if (localBackup.data) {
+            // Check any section for students
+            Object.values(localBackup.data).forEach(secData => {
+                if (secData.studentList && secData.studentList.length > 0) hasStudents = true;
+            });
+        }
+
+        const isLocalEmpty = !hasStudents;
+
         console.log(`☁️ Sync Check: Local (${new Date(localTime).toLocaleTimeString()}) vs Cloud (${new Date(cloudTime).toLocaleTimeString()})`);
+        console.log(`☁️ Is Local Empty? ${isLocalEmpty}`);
+
+        // Case 0: Local is Empty -> ALWAYS Pull from Cloud (if cloud has data)
+        if (isLocalEmpty && result.data && !result.empty) {
+            console.log("☁️ Fresh Install detected. Pulling from cloud...");
+            const success = store.importFullBackup(result.data);
+            if (success) {
+                console.log("🔄 Data synced (Fresh Install)");
+                this.updateSyncStatus('success', 'Sincronizado');
+                Toast.show("✅ Datos restaurados desde la nube.", "success");
+            } else {
+                this.updateSyncStatus('error');
+                Toast.show("❌ Error restaurando datos.", "error");
+            }
+            return;
+        }
 
         // Case 1: Cloud is Empty or Invalid -> Upload Local (Seed)
         if (result.empty || !result.data) {
