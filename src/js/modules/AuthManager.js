@@ -423,12 +423,29 @@ export const AuthManager = {
 
     logout: async function () {
         try {
-            if (confirm("¿Cerrar sesión?")) {
+            if (confirm("¿Cerrar sesión? Esto borrará los datos locales actuales de la vista para proteger tu privacidad.")) {
                 await Parse.User.logOut();
-                location.reload();
+
+                // Clear Sensitive Local Data
+                localStorage.removeItem('minerd_sections_index');
+                localStorage.removeItem('minerd_current_section_id');
+                localStorage.removeItem('minerd_cloud_id');
+                // Legacy V1 data if present
+                localStorage.removeItem('minerd_boletin_data');
+
+                // Clear all Section Data dynamically
+                Object.keys(localStorage).forEach(key => {
+                    if (key.startsWith('minerd_data_')) {
+                        localStorage.removeItem(key);
+                    }
+                });
+
+                Toast.show("Sesión cerrada. Limpiando datos...", "info");
+                setTimeout(() => location.reload(), 1500);
             }
         } catch (e) {
-            console.error(e);
+            console.error("Logout error", e);
+            location.reload();
         }
     },
 
