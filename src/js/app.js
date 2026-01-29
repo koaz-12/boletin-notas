@@ -17,7 +17,11 @@ import { ObservationsManager } from './modules/ObservationsManager.js';
 import { StudentManager } from './modules/StudentManager.js';
 
 // Global Instances (for debugging or legacy access if needed)
-export { store, Toast };
+window.store = store;
+window.AppUI = AppUI;
+window.Toast = Toast;
+window.CloudStorage = CloudStorage;
+window.AuthManager = AuthManager;
 
 // Bootstrap Application
 document.addEventListener('DOMContentLoaded', () => {
