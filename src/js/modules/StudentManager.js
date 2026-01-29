@@ -183,26 +183,35 @@ export const StudentManager = {
     },
 
     initTrashEvents: () => {
-        const btnOpen = document.getElementById('menu-trash');
-        const btnClose = document.getElementById('btn-close-trash');
-        const btnCloseFooter = document.getElementById('btn-close-trash-footer');
-        const btnEmpty = document.getElementById('btn-empty-trash');
+        // Use Delegation for robustness
+        document.body.addEventListener('click', (e) => {
+            // Check for buttons or elements inside buttons
+            const target = e.target.closest('button') || e.target.closest('#menu-trash');
+            if (!target) return;
 
-        if (btnOpen) btnOpen.onclick = StudentManager.openTrashModal;
-        if (btnClose) btnClose.onclick = StudentManager.closeTrashModal;
-        if (btnCloseFooter) btnCloseFooter.onclick = StudentManager.closeTrashModal;
+            if (target.id === 'menu-trash') {
+                StudentManager.openTrashModal();
+                // Close user menu if open
+                const menu = document.getElementById('user-menu-dropdown');
+                if (menu && !menu.classList.contains('hidden')) menu.classList.add('hidden');
+            }
 
-        if (btnEmpty) btnEmpty.onclick = () => {
-            AppUI.confirm(
-                "Vaciar Papelera",
-                "¿Estás seguro de eliminar PERMANENTEMENTE estos estudiantes?\nNo podrás deshacer esta acción.",
-                () => {
-                    store.emptyTrash();
-                    StudentManager.renderTrashList();
-                    Toast.show("Papelera vaciada.", "info");
-                },
-                true
-            );
-        };
+            if (target.id === 'btn-close-trash' || target.id === 'btn-close-trash-footer') {
+                StudentManager.closeTrashModal();
+            }
+
+            if (target.id === 'btn-empty-trash') {
+                AppUI.confirm(
+                    "Vaciar Papelera",
+                    "¿Estás seguro de eliminar PERMANENTEMENTE estos estudiantes?\nNo podrás deshacer esta acción.",
+                    () => {
+                        store.emptyTrash();
+                        StudentManager.renderTrashList();
+                        Toast.show("Papelera vaciada.", "info");
+                    },
+                    true
+                );
+            }
+        });
     }
 };

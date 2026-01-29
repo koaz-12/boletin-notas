@@ -14,6 +14,7 @@ import { AppUtils } from './modules/AppUtils.js';
 import CloudStorage from './modules/CloudStorage.js';
 import { AuthManager } from './modules/AuthManager.js';
 import { ObservationsManager } from './modules/ObservationsManager.js';
+import { StudentManager } from './modules/StudentManager.js';
 
 // Global Instances (for debugging or legacy access if needed)
 export { store, Toast };
