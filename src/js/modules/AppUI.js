@@ -14,6 +14,8 @@ export const AppUI = {
             Toast.show('Estudiante guardado en base de datos local.', 'success');
         });
 
+        this.initConnectionManager();
+
         // --- CLOUD AUTO-SAVE LOGIC ---
         const performCloudSave = async () => {
             const spinner = document.getElementById('cloud-spinner');
@@ -429,5 +431,40 @@ export const AppUI = {
 
         modal.classList.remove('hidden');
         setTimeout(() => input.focus(), 100);
+    },
+
+    // --- CONNECTION STATUS ---
+    initConnectionManager: function () {
+        const updateStatus = () => {
+            const isOnline = navigator.onLine;
+            this.updateConnectionStatus(isOnline ? 'online' : 'offline');
+        };
+
+        window.addEventListener('online', updateStatus);
+        window.addEventListener('offline', updateStatus);
+
+        // Initial check
+        updateStatus();
+    },
+
+    updateConnectionStatus: function (status) {
+        const container = document.getElementById('connection-status');
+        const dot = document.getElementById('connection-dot');
+
+        if (!container || !dot) return;
+
+        if (status === 'online') {
+            container.className = "hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-50 border border-green-200 transition-colors";
+            container.title = "Conexión Estable";
+            dot.className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
+        } else if (status === 'offline') {
+            container.className = "hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 border border-red-200 transition-colors";
+            container.title = "Sin Conexión (Modo Offline)";
+            dot.className = "w-2 h-2 rounded-full bg-red-500";
+        } else if (status === 'checking') {
+            container.className = "hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-yellow-50 border border-yellow-200 transition-colors";
+            container.title = "Comprobando conexión...";
+            dot.className = "w-2 h-2 rounded-full bg-yellow-500 animate-bounce";
+        }
     }
 };

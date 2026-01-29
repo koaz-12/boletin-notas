@@ -1,6 +1,7 @@
 import { Toast } from './Toast.js';
 import CloudStorage from './CloudStorage.js';
 import { store } from './State.js';
+import { AppUI } from './AppUI.js';
 
 export const AuthManager = {
     init: function () {
@@ -328,9 +329,18 @@ export const AuthManager = {
 
         if (!result.success) {
             this.updateSyncStatus('error'); // VISUAL FEEDBACK ERROR
+
+            // Check for network error
+            if (result.error && (result.error.toString().includes("Network") || !navigator.onLine)) {
+                AppUI.updateConnectionStatus('offline');
+            }
+
             Toast.show("⚠️ Error conectando nube: " + result.error, "error");
             return;
         }
+
+        // Success implies online
+        AppUI.updateConnectionStatus('online');
 
         // Smart Sync Strategy: Timestamp Comparison
         const localBackup = store.exportFullBackup();
