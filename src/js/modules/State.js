@@ -39,6 +39,16 @@ class SectionManager {
         return newSection;
     }
 
+    renameSection(id, newName) {
+        const section = this.sections.find(s => s.id === id);
+        if (section) {
+            section.name = newName;
+            this.saveSections();
+            return true;
+        }
+        return false;
+    }
+
     deleteSection(id) {
         this.sections = this.sections.filter(s => s.id !== id);
         this.saveSections();

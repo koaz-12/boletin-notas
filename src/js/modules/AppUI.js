@@ -171,7 +171,7 @@ export const AppUI = {
 
             tab.innerHTML = `
                 <div class="flex items-center justify-between w-full">
-                    <span class="${nameClass}">${sec.name}</span>
+                    <span class="${nameClass} truncate max-w-[90px]" title="Doble clic para renombrar" ondblclick="event.stopPropagation(); AppUI.promptRename('${sec.id}', '${sec.name}')">${sec.name}</span>
                     <button class="delete-btn opacity-0 group-hover:opacity-100 text-[10px] ml-2 hover:text-red-500 hover:bg-red-100 rounded-full w-4 h-4 flex items-center justify-center transition-all ${isActive ? 'block' : 'hidden'}">✕</button>
                 </div>
                 <div class="flex items-center gap-1">
@@ -245,6 +245,14 @@ export const AppUI = {
                 btnEdit.classList.add('bg-white', 'text-gray-600', 'border-gray-200');
             }
         }
+    },
+
+    promptRename: function (id, currentName) {
+        this.prompt("Renombrar Sección", "Nuevo nombre:", (newName) => {
+            if (newName && newName.trim() !== "") {
+                store.renameSection(id, newName.trim());
+            }
+        }, currentName);
     },
 
     render: function () {
