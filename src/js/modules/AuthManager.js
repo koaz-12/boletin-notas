@@ -332,144 +332,175 @@ export const AuthManager = {
             return;
         }
 
-        if (!result.empty && result.data) {
-            // Cloud has data -> Overwrite Local
+        // Smart Sync Strategy: Timestamp Comparison
+        const localBackup = store.exportFullBackup();
+        const localTime = localBackup.timestamp || 0;
+        const cloudTime = (result.data && result.data.timestamp) ? result.data.timestamp : 0;
+
+        console.log(`☁️ Sync Check: Local (${new Date(localTime).toLocaleTimeString()}) vs Cloud (${new Date(cloudTime).toLocaleTimeString()})`);
+
+        // Case 1: Cloud is Empty or Invalid -> Upload Local (Seed)
+        if (result.empty || !result.data) {
+            console.log("☁️ Cloud empty, uploading local data...");
+            this.updateSyncStatus('saving');
+            await CloudStorage.saveData(localBackup);
+            this.updateSyncStatus('success', 'Sincronizado');
+            return;
+        }
+
+        // Case 2: Local is Newer (e.g. just imported V1 or edited offline) -> Upload Local (Overwrite Cloud)
+        // Add a small buffer (e.g. 1 sec) to avoid loops due to clock skews
+        if (localTime > cloudTime) {
+            console.log("☁️ Local is newer, pushing to cloud...");
+            this.updateSyncStatus('saving');
+            await CloudStorage.saveData(localBackup);
+            this.updateSyncStatus('success', 'Sincronizado');
+            Toast.show("☁️ Nube actualizada con tus datos recientes.", "success");
+            return;
+        }
+
+        // Case 3: Cloud is Newer -> Download (Overwrite Local)
+        if (cloudTime > localTime) {
+            console.log("☁️ Cloud is newer, pulling data...");
+            // Prevent infinite reload loop if import fails or timestamps don't align
             const success = store.importFullBackup(result.data);
             if (success) {
                 console.log("🔄 Data synced from cloud logic");
-                this.updateSyncStatus('success', 'Sincronizado'); // VISUAL FEEDBACK SUCCESS
-                Toast.show("✅ Datos sincronizados con tu cuenta", "success");
+                this.updateSyncStatus('success', 'Sincronizado');
+                Toast.show("✅ Datos sincronizados desde la nube.", "success");
             } else {
                 this.updateSyncStatus('error');
-                Toast.show("❌ Error aplicando datos de la nube", "error");
+                Toast.show("❌ Error aplicando datos de la nube.", "error");
             }
-        } else {
-            // Cloud is Empty -> Upload Local Data (Seed the account)
-            console.log("☁️ Cloud empty, uploading local data...");
-            this.updateSyncStatus('saving'); // Changing state to saving
-            const localBackup = store.exportFullBackup();
-            const saveRes = await CloudStorage.saveData(localBackup);
-            if (saveRes.success) {
-                this.updateSyncStatus('success', 'Guardado');
-                Toast.show("✅ Tu trabajo local se ha guardado en tu cuenta", "success");
+            return;
+        }
+
+        // Case 4: Sync -> Do nothing
+        console.log("☁️ Data is already in sync.");
+        this.updateSyncStatus('success', 'Sincronizado');
+    },
+    const saveRes = await CloudStorage.saveData(localBackup);
+    if(saveRes.success) {
+        this.updateSyncStatus('success', 'Guardado');
+Toast.show("✅ Tu trabajo local se ha guardado en tu cuenta", "success");
             } else {
-                this.updateSyncStatus('error');
-                Toast.show("❌ Error inicializando cuenta: " + saveRes.error, "error");
-            }
+    this.updateSyncStatus('error');
+    Toast.show("❌ Error inicializando cuenta: " + saveRes.error, "error");
+}
         }
     },
 
-    restoreFromCloud: async function () {
-        console.log("🔄 Manual Restore Initiated");
-        Toast.show("📡 Conectando con la nube...", "info");
-        await this.syncUserData();
-    },
+restoreFromCloud: async function () {
+    console.log("🔄 Manual Restore Initiated");
+    Toast.show("📡 Conectando con la nube...", "info");
+    await this.syncUserData();
+},
 
-    login: async function (username, password) {
-        try {
-            const user = await Parse.User.logIn(username, password);
-            Toast.show("¡Bienvenido, " + user.get("username") + "!", "success");
-            this.showLogin(false);
-            this.updateUserUI(user);
-            this.syncUserData();
-            return { success: true, user };
-        } catch (error) {
-            console.error("Login failed", error);
-            Toast.show("❌ Error: " + error.message, "error");
-            return { success: false, error };
-        }
-    },
-
-    signup: async function (username, password, email) {
-        const user = new Parse.User();
-        user.set("username", username);
-        user.set("password", password);
-        if (email) user.set("email", email);
-
-        try {
-            await user.signUp();
-            Toast.show("¡Cuenta creada! Bienvenido, " + username, "success");
-            this.showLogin(false);
-            // New user has no data to sync yet
-            return { success: true, user };
-        } catch (error) {
-            console.error("Signup failed", error);
-            Toast.show("❌ Error registro: " + error.message, "error");
-            return { success: false, error };
-        }
-    },
-
-    logout: async function () {
-        try {
-            if (confirm("¿Cerrar sesión?")) {
-                await Parse.User.logOut();
-                location.reload();
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    },
-
-    showLogin: function (show) {
-        const modal = document.getElementById('login-overlay');
-
-        if (!modal) return;
-
-        if (show) {
-            modal.classList.remove('hidden');
-            document.body.classList.add('overflow-hidden'); // Prevent scrolling
-        } else {
-            modal.classList.add('hidden');
-            document.body.classList.remove('overflow-hidden');
-        }
-    },
-
-    updateSyncStatus: function (status, message = "") {
-        const btn = document.getElementById('btn-cloud-save');
-        const text = document.getElementById('cloud-status-text');
-        const spinner = document.getElementById('cloud-spinner');
-
-        if (!btn || !text || !spinner) return;
-
-        // Reset classes
-        btn.classList.remove('bg-green-100', 'border-green-300', 'bg-red-50', 'border-red-200');
-
-        switch (status) {
-            case 'saving':
-                spinner.classList.remove('hidden');
-                text.textContent = "Guardando...";
-                text.classList.remove('text-green-700', 'text-red-600');
-                text.classList.add('text-gray-600');
-                break;
-            case 'syncing':
-                spinner.classList.remove('hidden');
-                text.textContent = "Sincronizando...";
-                break;
-            case 'success':
-                spinner.classList.add('hidden');
-                text.textContent = message || "Guardado";
-                text.classList.add('text-green-700');
-                btn.classList.add('bg-green-50', 'border-green-200');
-
-                // Revert to Idle
-                setTimeout(() => {
-                    this.updateSyncStatus('idle');
-                }, 3000);
-                break;
-            case 'error':
-                spinner.classList.add('hidden');
-                text.textContent = "Error";
-                text.classList.add('text-red-600');
-                btn.classList.add('bg-red-50', 'border-red-200');
-                break;
-            case 'idle':
-            default:
-                spinner.classList.add('hidden');
-                text.textContent = "Sincronizar";
-                text.classList.remove('text-green-700', 'text-red-600', 'text-gray-600');
-                text.classList.add('text-gray-500');
-                btn.classList.remove('bg-green-50', 'border-green-200');
-                break;
-        }
+login: async function (username, password) {
+    try {
+        const user = await Parse.User.logIn(username, password);
+        Toast.show("¡Bienvenido, " + user.get("username") + "!", "success");
+        this.showLogin(false);
+        this.updateUserUI(user);
+        this.syncUserData();
+        return { success: true, user };
+    } catch (error) {
+        console.error("Login failed", error);
+        Toast.show("❌ Error: " + error.message, "error");
+        return { success: false, error };
     }
+},
+
+signup: async function (username, password, email) {
+    const user = new Parse.User();
+    user.set("username", username);
+    user.set("password", password);
+    if (email) user.set("email", email);
+
+    try {
+        await user.signUp();
+        Toast.show("¡Cuenta creada! Bienvenido, " + username, "success");
+        this.showLogin(false);
+        // New user has no data to sync yet
+        return { success: true, user };
+    } catch (error) {
+        console.error("Signup failed", error);
+        Toast.show("❌ Error registro: " + error.message, "error");
+        return { success: false, error };
+    }
+},
+
+logout: async function () {
+    try {
+        if (confirm("¿Cerrar sesión?")) {
+            await Parse.User.logOut();
+            location.reload();
+        }
+    } catch (e) {
+        console.error(e);
+    }
+},
+
+showLogin: function (show) {
+    const modal = document.getElementById('login-overlay');
+
+    if (!modal) return;
+
+    if (show) {
+        modal.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden'); // Prevent scrolling
+    } else {
+        modal.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    }
+},
+
+updateSyncStatus: function (status, message = "") {
+    const btn = document.getElementById('btn-cloud-save');
+    const text = document.getElementById('cloud-status-text');
+    const spinner = document.getElementById('cloud-spinner');
+
+    if (!btn || !text || !spinner) return;
+
+    // Reset classes
+    btn.classList.remove('bg-green-100', 'border-green-300', 'bg-red-50', 'border-red-200');
+
+    switch (status) {
+        case 'saving':
+            spinner.classList.remove('hidden');
+            text.textContent = "Guardando...";
+            text.classList.remove('text-green-700', 'text-red-600');
+            text.classList.add('text-gray-600');
+            break;
+        case 'syncing':
+            spinner.classList.remove('hidden');
+            text.textContent = "Sincronizando...";
+            break;
+        case 'success':
+            spinner.classList.add('hidden');
+            text.textContent = message || "Guardado";
+            text.classList.add('text-green-700');
+            btn.classList.add('bg-green-50', 'border-green-200');
+
+            // Revert to Idle
+            setTimeout(() => {
+                this.updateSyncStatus('idle');
+            }, 3000);
+            break;
+        case 'error':
+            spinner.classList.add('hidden');
+            text.textContent = "Error";
+            text.classList.add('text-red-600');
+            btn.classList.add('bg-red-50', 'border-red-200');
+            break;
+        case 'idle':
+        default:
+            spinner.classList.add('hidden');
+            text.textContent = "Sincronizar";
+            text.classList.remove('text-green-700', 'text-red-600', 'text-gray-600');
+            text.classList.add('text-gray-500');
+            btn.classList.remove('bg-green-50', 'border-green-200');
+            break;
+    }
+}
 };
