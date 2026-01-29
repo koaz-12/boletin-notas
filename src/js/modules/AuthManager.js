@@ -379,128 +379,119 @@ export const AuthManager = {
         console.log("☁️ Data is already in sync.");
         this.updateSyncStatus('success', 'Sincronizado');
     },
-    const saveRes = await CloudStorage.saveData(localBackup);
-    if(saveRes.success) {
-        this.updateSyncStatus('success', 'Guardado');
-Toast.show("✅ Tu trabajo local se ha guardado en tu cuenta", "success");
-            } else {
-    this.updateSyncStatus('error');
-    Toast.show("❌ Error inicializando cuenta: " + saveRes.error, "error");
-}
+
+
+    restoreFromCloud: async function () {
+        console.log("🔄 Manual Restore Initiated");
+        Toast.show("📡 Conectando con la nube...", "info");
+        await this.syncUserData();
+    },
+
+    login: async function (username, password) {
+        try {
+            const user = await Parse.User.logIn(username, password);
+            Toast.show("¡Bienvenido, " + user.get("username") + "!", "success");
+            this.showLogin(false);
+            this.updateUserUI(user);
+            this.syncUserData();
+            return { success: true, user };
+        } catch (error) {
+            console.error("Login failed", error);
+            Toast.show("❌ Error: " + error.message, "error");
+            return { success: false, error };
         }
     },
 
-restoreFromCloud: async function () {
-    console.log("🔄 Manual Restore Initiated");
-    Toast.show("📡 Conectando con la nube...", "info");
-    await this.syncUserData();
-},
+    signup: async function (username, password, email) {
+        const user = new Parse.User();
+        user.set("username", username);
+        user.set("password", password);
+        if (email) user.set("email", email);
 
-login: async function (username, password) {
-    try {
-        const user = await Parse.User.logIn(username, password);
-        Toast.show("¡Bienvenido, " + user.get("username") + "!", "success");
-        this.showLogin(false);
-        this.updateUserUI(user);
-        this.syncUserData();
-        return { success: true, user };
-    } catch (error) {
-        console.error("Login failed", error);
-        Toast.show("❌ Error: " + error.message, "error");
-        return { success: false, error };
-    }
-},
-
-signup: async function (username, password, email) {
-    const user = new Parse.User();
-    user.set("username", username);
-    user.set("password", password);
-    if (email) user.set("email", email);
-
-    try {
-        await user.signUp();
-        Toast.show("¡Cuenta creada! Bienvenido, " + username, "success");
-        this.showLogin(false);
-        // New user has no data to sync yet
-        return { success: true, user };
-    } catch (error) {
-        console.error("Signup failed", error);
-        Toast.show("❌ Error registro: " + error.message, "error");
-        return { success: false, error };
-    }
-},
-
-logout: async function () {
-    try {
-        if (confirm("¿Cerrar sesión?")) {
-            await Parse.User.logOut();
-            location.reload();
+        try {
+            await user.signUp();
+            Toast.show("¡Cuenta creada! Bienvenido, " + username, "success");
+            this.showLogin(false);
+            // New user has no data to sync yet
+            return { success: true, user };
+        } catch (error) {
+            console.error("Signup failed", error);
+            Toast.show("❌ Error registro: " + error.message, "error");
+            return { success: false, error };
         }
-    } catch (e) {
-        console.error(e);
+    },
+
+    logout: async function () {
+        try {
+            if (confirm("¿Cerrar sesión?")) {
+                await Parse.User.logOut();
+                location.reload();
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    },
+
+    showLogin: function (show) {
+        const modal = document.getElementById('login-overlay');
+
+        if (!modal) return;
+
+        if (show) {
+            modal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden'); // Prevent scrolling
+        } else {
+            modal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        }
+    },
+
+    updateSyncStatus: function (status, message = "") {
+        const btn = document.getElementById('btn-cloud-save');
+        const text = document.getElementById('cloud-status-text');
+        const spinner = document.getElementById('cloud-spinner');
+
+        if (!btn || !text || !spinner) return;
+
+        // Reset classes
+        btn.classList.remove('bg-green-100', 'border-green-300', 'bg-red-50', 'border-red-200');
+
+        switch (status) {
+            case 'saving':
+                spinner.classList.remove('hidden');
+                text.textContent = "Guardando...";
+                text.classList.remove('text-green-700', 'text-red-600');
+                text.classList.add('text-gray-600');
+                break;
+            case 'syncing':
+                spinner.classList.remove('hidden');
+                text.textContent = "Sincronizando...";
+                break;
+            case 'success':
+                spinner.classList.add('hidden');
+                text.textContent = message || "Guardado";
+                text.classList.add('text-green-700');
+                btn.classList.add('bg-green-50', 'border-green-200');
+
+                // Revert to Idle
+                setTimeout(() => {
+                    this.updateSyncStatus('idle');
+                }, 3000);
+                break;
+            case 'error':
+                spinner.classList.add('hidden');
+                text.textContent = "Error";
+                text.classList.add('text-red-600');
+                btn.classList.add('bg-red-50', 'border-red-200');
+                break;
+            case 'idle':
+            default:
+                spinner.classList.add('hidden');
+                text.textContent = "Sincronizar";
+                text.classList.remove('text-green-700', 'text-red-600', 'text-gray-600');
+                text.classList.add('text-gray-500');
+                btn.classList.remove('bg-green-50', 'border-green-200');
+                break;
+        }
     }
-},
-
-showLogin: function (show) {
-    const modal = document.getElementById('login-overlay');
-
-    if (!modal) return;
-
-    if (show) {
-        modal.classList.remove('hidden');
-        document.body.classList.add('overflow-hidden'); // Prevent scrolling
-    } else {
-        modal.classList.add('hidden');
-        document.body.classList.remove('overflow-hidden');
-    }
-},
-
-updateSyncStatus: function (status, message = "") {
-    const btn = document.getElementById('btn-cloud-save');
-    const text = document.getElementById('cloud-status-text');
-    const spinner = document.getElementById('cloud-spinner');
-
-    if (!btn || !text || !spinner) return;
-
-    // Reset classes
-    btn.classList.remove('bg-green-100', 'border-green-300', 'bg-red-50', 'border-red-200');
-
-    switch (status) {
-        case 'saving':
-            spinner.classList.remove('hidden');
-            text.textContent = "Guardando...";
-            text.classList.remove('text-green-700', 'text-red-600');
-            text.classList.add('text-gray-600');
-            break;
-        case 'syncing':
-            spinner.classList.remove('hidden');
-            text.textContent = "Sincronizando...";
-            break;
-        case 'success':
-            spinner.classList.add('hidden');
-            text.textContent = message || "Guardado";
-            text.classList.add('text-green-700');
-            btn.classList.add('bg-green-50', 'border-green-200');
-
-            // Revert to Idle
-            setTimeout(() => {
-                this.updateSyncStatus('idle');
-            }, 3000);
-            break;
-        case 'error':
-            spinner.classList.add('hidden');
-            text.textContent = "Error";
-            text.classList.add('text-red-600');
-            btn.classList.add('bg-red-50', 'border-red-200');
-            break;
-        case 'idle':
-        default:
-            spinner.classList.add('hidden');
-            text.textContent = "Sincronizar";
-            text.classList.remove('text-green-700', 'text-red-600', 'text-gray-600');
-            text.classList.add('text-gray-500');
-            btn.classList.remove('bg-green-50', 'border-green-200');
-            break;
-    }
-}
 };
