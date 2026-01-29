@@ -77,31 +77,44 @@ export class AppState {
     init() {
         // Bootstrap Migration Check
         if (sectionManager.sections.length === 0) {
-            const legacy = localStorage.getItem('minerd_boletin_data');
-            if (legacy) {
-                console.log("🚀 Bootstrapping Legacy Migration...");
-                const newSec = sectionManager.createSection("Recuperado", "1", "Matutina");
-                sectionManager.setCurrent(newSec.id);
-
-                // Save wrapped data
-                try {
-                    const legacyState = JSON.parse(legacy);
-                    const v2Data = {
-                        version: 2,
-                        timestamp: Date.now(),
-                        state: legacyState
-                    };
-                    localStorage.setItem('minerd_data_' + newSec.id, JSON.stringify(v2Data));
-                    console.log("✅ Legacy Data Migrated to Section: " + newSec.id);
-                    window.location.reload();
-                    return;
-                } catch (e) {
-                    console.error("Bootstrap Migration Failed:", e);
-                }
-            }
+            this.performLegacyMigration();
         }
 
         this.loadFromLocalStorage();
+    }
+
+    performLegacyMigration(force = false) {
+        const legacy = localStorage.getItem('minerd_boletin_data');
+        if (!legacy) {
+            if (force) {
+                alert("No se encontraron datos de la Versión 1 en este navegador.");
+            }
+            return false;
+        }
+
+        if (force && !confirm("Se creará una nueva sección 'Recuperado' con los datos de la v1.\n\n¿Continuar?")) return;
+
+        console.log("🚀 Legacy Migration Started...");
+
+        const newSec = sectionManager.createSection("Recuperado", "1", "Matutina");
+        sectionManager.setCurrent(newSec.id);
+
+        try {
+            const legacyState = JSON.parse(legacy);
+            const v2Data = {
+                version: 2,
+                timestamp: Date.now(),
+                state: legacyState
+            };
+            localStorage.setItem('minerd_data_' + newSec.id, JSON.stringify(v2Data));
+            console.log("✅ Legacy Data Migrated to Section: " + newSec.id);
+            window.location.reload();
+            return true;
+        } catch (e) {
+            console.error("Migration Failed:", e);
+            if (force) alert("Error: Datos V1 corruptos.");
+            return false;
+        }
     }
 
     resetState() {
@@ -436,24 +449,6 @@ export class AppState {
 
             // Fallback: If no new data, try legacy and migrate
             if (!json) {
-                if (legacy) {
-                    console.log("Migrating Legacy Data to " + key);
-
-                    // FIX: Wrap it in V2 structure
-                    try {
-                        const legacyState = JSON.parse(legacy);
-                        const v2Data = {
-                            version: 2,
-                            timestamp: Date.now(),
-                            state: legacyState
-                        };
-                        localStorage.setItem(key, JSON.stringify(v2Data));
-                        return this.loadFromLocalStorage(); // Retry
-                    } catch (e) {
-                        console.error("Migration Error: Legacy data corrupt", e);
-                        return false;
-                    }
-                }
                 return false;
             }
 
@@ -519,22 +514,35 @@ export class AppState {
         if (!backupObj) return false;
 
         // Legacy Support (Migration V1 -> V2)
-        if (!backupObj.sections && backupObj.studentList) {
+        if (!backupObj.sections && (backupObj.studentList || backupObj.roster)) {
             console.log("⚠️ Old Backup Format Detected. Migrating...");
+
+            // Fix: Reconstruct studentList if missing (Common in V1 backups)
+            if (!backupObj.studentList && backupObj.roster) {
+                backupObj.studentList = Object.keys(backupObj.roster);
+            }
 
             // Construct a virtual V2 structure
             const currentId = sectionManager.currentSectionId || Date.now().toString();
 
-            // Get current section metadata or create default
+            // Ensure Section Exists
             let currentSec = sectionManager.sections.find(s => s.id === currentId);
             if (!currentSec) {
-                currentSec = { id: currentId, name: "Importado", grade: backupObj.grade || "1" };
+                currentSec = { id: currentId, name: "Importado (V1)", grade: backupObj.grade ? String(backupObj.grade) : "1" };
                 sectionManager.sections.push(currentSec);
                 localStorage.setItem('minerd_sections_index', JSON.stringify(sectionManager.sections));
+                sectionManager.setCurrent(currentId);
             }
 
-            // Map legacy state to current section data
-            localStorage.setItem('minerd_data_' + currentId, JSON.stringify({ state: backupObj }));
+            // Validate Data Structure before saving
+            // V2 Expects wrapper: { version: 2, state: { ... } }
+            const v2Data = {
+                version: 2,
+                timestamp: Date.now(),
+                state: backupObj
+            };
+
+            localStorage.setItem('minerd_data_' + currentSec.id, JSON.stringify(v2Data));
 
             // Reload
             window.location.reload();

@@ -447,6 +447,11 @@ export const Events = {
             }
             if (target.id === 'btnConfirmImport') ImportManager.processBatchImport();
 
+            // Manual Migration (V1)
+            if (target.id === 'btn-migrate-v1') {
+                store.performLegacyMigration(true);
+            }
+
             // Toggle Edit Mode (Float)
             if (target.closest('#btnFloatEdit')) {
                 const btn = target.closest('#btnFloatEdit');
