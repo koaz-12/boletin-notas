@@ -1,0 +1,385 @@
+@import url('https://fonts.googleapis.com/css2?family=Times+New+Roman:ital,wght@0,400;0,700;1,400&display=swap');
+
+:root {
+    --report-font-size: 11px;
+    --report-justify: center;
+    --report-text-align: center;
+}
+
+/* Force text alignment for all report inputs and display fields */
+.content-layer input,
+.content-layer textarea,
+.box-input,
+.report-input,
+.draggable-field span {
+    text-align: var(--report-text-align) !important;
+    padding-left: var(--report-padding, 0px) !important;
+    padding-right: var(--report-padding, 0px) !important;
+}
+
+body {
+    font-family: 'Times New Roman', Times, serif;
+}
+
+/* Apply global font size to the report content layers */
+.content-layer,
+.draggable-field {
+    font-size: var(--report-font-size) !important;
+    font-weight: var(--report-font-weight, normal) !important;
+}
+
+/* Page 2 Specific Split Styling */
+/* Grades */
+#page-2 div[id^="grade_"] span,
+#page-2 div[id^="grade_"] input {
+    text-align: var(--report-p2-grades-align) !important;
+    font-weight: var(--report-p2-grades-weight, normal) !important;
+}
+
+/* Observations & Assessments (Overlay) */
+#page-2 div[id^="overlay_"] span,
+#page-2 div[id^="overlay_"] input {
+    text-align: var(--report-p2-obs-align) !important;
+    font-weight: var(--report-p2-obs-weight, normal) !important;
+}
+
+.dynamic-justify {
+    justify-content: var(--report-justify) !important;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Tabs Styling */
+.tab-btn {
+    border-bottom: 2px solid transparent;
+    color: #6b7280;
+    /* gray-500 */
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.tab-btn:hover {
+    color: #1d4ed8;
+    /* blue-700 */
+    background-color: #eff6ff;
+    /* blue-50 */
+}
+
+.tab-btn.tab-active {
+    border-bottom: 2px solid #2563eb;
+    /* blue-600 */
+    color: #2563eb;
+    background-color: #eff6ff;
+}
+
+
+/* Estilos para simular hoja A4 Horizontal (Landscape) */
+.a4-page {
+    width: 297mm;
+    /* Ancho A4 Landscape */
+    height: 210mm;
+    /* Alto A4 Landscape */
+    margin: 10mm auto;
+    background: white;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    position: relative;
+    box-sizing: border-box;
+    overflow: hidden;
+    /* Evitar desbordes */
+}
+
+/* Canvas para el fondo PDF */
+.pdf-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* Capa de contenido (Inputs) */
+.content-layer {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    text-align: center;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.report-input:focus {
+    outline: none;
+    background-color: rgba(240, 249, 255, 0.5);
+}
+
+/* Bordes de tabla estilo oficial (visible si no hay overlay) */
+.official-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.official-table th,
+.official-table td {
+    border: 1px solid transparent;
+    /* Ocultar bordes para impresión limpia */
+    padding: 4px;
+}
+
+.official-table th {
+    background-color: #f3f4f6;
+    font-weight: bold;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+/* Header Oficial (visible si no hay overlay) */
+.minerd-header {
+    text-align: center;
+    margin-bottom: 10px;
+    line-height: 1.2;
+}
+
+.minerd-logo {
+    width: 80px;
+    height: auto;
+    margin: 0 auto 5px;
+}
+
+/* MODO SUPERPOSICIÓN (OVERLAY) */
+/* Oculta todo lo que no sea input cuando el overlay está activo */
+
+/* Regla general para ocultar texto pero mantener espacio */
+.overlay-active .minerd-header,
+.overlay-active .label-text,
+.overlay-active .header-row,
+.overlay-active .line-signature,
+.overlay-active .footer-section p,
+.overlay-active .footer-section ul,
+.overlay-active .footer-section div:not(.input-field-box),
+.overlay-active .official-table th {
+    visibility: hidden !important;
+    opacity: 0 !important;
+    color: transparent !important;
+}
+
+/* Ocultar bordes de la tabla y celdas */
+.overlay-active .official-table,
+.overlay-active .official-table th,
+.overlay-active .official-table td {
+    border: none !important;
+    background: transparent !important;
+}
+
+/* Ocultar contenido de la primera columna (nombres de materias) */
+.overlay-active .official-table td:first-child {
+    visibility: hidden !important;
+    color: transparent !important;
+}
+
+/* Ocultar bordes de inputs y celdas de datos */
+/* Ocultar bordes de inputs y celdas de datos */
+.overlay-active .input-field,
+.overlay-active .report-input,
+.overlay-active td {
+    background: transparent !important;
+    border-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Ensure inputs themselves are transparent */
+.overlay-active input {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Hide grid container borders specifically */
+.overlay-active #grades-grid-container table,
+.overlay-active #grades-grid-container th,
+.overlay-active #grades-grid-container td {
+    border: none !important;
+    background: transparent !important;
+}
+
+/* Ocultar SVG del logo */
+.overlay-active .minerd-logo {
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
+/* Quitar borde de la caja de observaciones */
+.overlay-active .input-field-box {
+    border: none !important;
+}
+
+/* --- FIX: Ensure Edit Mode is visible even with Overlay --- */
+body.edit-mode-active .draggable-field {
+    border: 2px dashed #f87171 !important;
+    /* red-400 */
+    background-color: rgba(254, 242, 242, 0.5) !important;
+    /* red-50 opacity */
+    cursor: grab !important;
+    z-index: 100 !important;
+    /* Bring to front */
+}
+
+body.edit-mode-active .draggable-field:hover {
+    border-color: #ef4444 !important;
+    /* red-500 */
+    background-color: rgba(254, 242, 242, 0.8) !important;
+}
+
+body.edit-mode-active .draggable-field:active {
+    cursor: grabbing !important;
+}
+
+/* Estilos para elementos arrastrables y redimensionables */
+.draggable-field {
+    resize: none;
+    /* Default: Locked */
+    overflow: hidden;
+    min-width: 20px;
+    min-height: 20px;
+}
+
+/* Allow resize ONLY in Edit Mode */
+body.edit-mode-active .draggable-field {
+    resize: both;
+}
+
+.draggable-field::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 8px;
+    height: 8px;
+    background: linear-gradient(135deg, transparent 50%, #9ca3af 50%);
+    cursor: nwse-resize;
+    pointer-events: none;
+    opacity: 0;
+    /* Default: Hidden */
+    transition: opacity 0.2s;
+}
+
+/* Show Handle ONLY in Edit Mode */
+body.edit-mode-active .draggable-field::after {
+    opacity: 0.5;
+}
+
+body.edit-mode-active .draggable-field:hover::after {
+    opacity: 1;
+    background: linear-gradient(135deg, transparent 50%, #2563eb 50%);
+}
+
+/* --- BORDER TOGGLE LOGIC --- */
+.b-cell {
+    border: 1px solid #e5e7eb;
+    /* gray-200 */
+}
+
+/* OVERLAY MODE: HIDE BORDERS & BACKGROUNDS */
+.overlay-active .b-cell,
+.overlay-active .official-table,
+.overlay-active .official-table th,
+.overlay-active .official-table td {
+    border: none !important;
+    background: transparent !important;
+}
+
+/* Ensure inputs are transparent in overlay mode */
+.overlay-active input {
+    background: transparent !important;
+    border: none !important;
+}
+
+/* Hide Resize Handle in Overlay Mode */
+.overlay-active .draggable-field::after {
+    display: none !important;
+}
+
+/* IMPRESIÓN NATIVA (Para Guardar como PDF) */
+@media print {
+    @page {
+        size: A4 landscape;
+        margin: 0;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        background: white;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .draggable-field::after {
+        display: none !important;
+    }
+
+    .a4-page {
+        margin: 0;
+        box-shadow: none;
+        page-break-after: always;
+        width: 297mm;
+        /* Explicit A4 width */
+        height: 210mm;
+        /* Explicit A4 height */
+        overflow: hidden;
+        background: transparent !important;
+        /* Importante para ver el canvas */
+        border: none !important;
+        position: relative;
+        /* Ensure absolute children work */
+    }
+
+    .a4-page:last-of-type {
+        page-break-after: auto !important;
+        break-after: auto !important;
+    }
+
+    /* Asegurar que el canvas de fondo se imprima */
+    .pdf-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 0 !important;
+        /* No usar -1 para evitar que se oculte */
+        display: block !important;
+        width: 100%;
+        height: 100%;
+    }
+
+    /* Contenido encima del canvas */
+    .content-layer {
+        z-index: 10 !important;
+    }
+
+    #report-container {
+        width: 100%;
+    }
+}
