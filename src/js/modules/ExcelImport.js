@@ -75,15 +75,18 @@ export const ExcelImport = {
         // Convert Sheet to JSON (Array of Arrays) to scan structure
         const rows = XLSX.utils.sheet_to_json(datosSheet, { header: 1 });
 
-        // Scan the first column (Column A, index 0) for vertical keywords
-        // User says: Label in one row, Value in the next.
-        // Keywords: "Docente", "Centro Educativo", "Año Escolar"
+        // Scan the first 10 columns for vertical keywords
+        // Keywords: "Docente", "Centro Educativo", "Grado"
         let verticalScore = 0;
         for (let i = 0; i < Math.min(rows.length, 30); i++) {
-            const cell = rows[i] ? String(rows[i][0] || "").trim().toLowerCase() : "";
-            if (cell.includes("docente")) verticalScore++;
-            if (cell.includes("centro educativo")) verticalScore++;
-            if (cell.includes("grado")) verticalScore++;
+            const row = rows[i];
+            if (!row) continue;
+            for (let c = 0; c < Math.min(row.length, 10); c++) {
+                const cell = String(row[c] || "").trim().toLowerCase();
+                if (cell.includes("docente")) verticalScore++;
+                if (cell.includes("centro educativo")) verticalScore++;
+                if (cell.includes("grado")) verticalScore++;
+            }
         }
 
         if (verticalScore >= 2) return 'v2'; // High confidence it's the new vertical template
@@ -129,16 +132,50 @@ export const ExcelImport = {
         const rows = this.getRows(workbook, sheetName);
         const meta = {};
 
-        // 1. Extract Metadata (Vertical Scanning)
-        // Look for keywords in Col 0, take value from Col 0 in Next Row
-        for (let i = 0; i < Math.min(rows.length, 30); i++) {
-            const cell = rows[i] ? String(rows[i][0] || "").trim().toLowerCase() : "";
+        // 1. Extract Metadata (Smart 2D Scanning)
+        // Scan up to row 30, up to col 10 for keywords since user mentioned they are in Column D (index 3).
+        for (let r = 0; r < Math.min(rows.length, 30); r++) {
+            const row = rows[r];
+            if (!row) continue;
 
-            if (cell.includes("centro educativo")) meta.centro = rows[i + 1] ? rows[i + 1][0] : "";
-            if (cell.includes("docente")) meta.docente = rows[i + 1] ? rows[i + 1][0] : "";
-            if (cell.includes("grado")) meta.grado = rows[i + 1] ? rows[i + 1][0] : "";
-            if (cell.includes("sección") || cell.includes("seccion")) meta.seccion = rows[i + 1] ? rows[i + 1][0] : "";
-            if (cell.includes("año escolar")) meta.anio = rows[i + 1] ? rows[i + 1][0] : "";
+            for (let c = 0; c < Math.min(row.length, 10); c++) {
+                const cell = String(row[c] || "").trim().toLowerCase();
+                if (!cell) continue;
+
+                // Helper: GET value to the right first, then below
+                const getValue = () => {
+                    if (row[c + 1] !== undefined && String(row[c + 1]).trim() !== "") return String(row[c + 1]).trim();
+                    if (rows[r + 1] && rows[r + 1][c] !== undefined && String(rows[r + 1][c]).trim() !== "") return String(rows[r + 1][c]).trim();
+                    return "";
+                };
+
+                if (cell.includes("centro educativo")) meta.centro = getValue();
+                if (cell.includes("docente")) meta.docente = getValue();
+                if (cell.includes("sección") || cell.includes("seccion")) meta.seccion = getValue();
+                if (cell.includes("año escolar")) meta.anio = getValue();
+
+                if (cell === "tanda" || cell.includes("tanda:")) meta.tanda = getValue();
+
+                if (cell.includes("grado")) {
+                    meta.grado = getValue();
+
+                    // User specified: "busque ene esa columna lapalabra grado y la casilla de abajo ahi estara tanda"
+                    // If there's a cell directly below "grado", check if it's the tanda.
+                    if (rows[r + 1] && rows[r + 1][c] !== undefined) {
+                        const belowGrado = String(rows[r + 1][c]).trim();
+                        if (belowGrado.toLowerCase().includes("matutin") || belowGrado.toLowerCase().includes("vespertin")) {
+                            meta.tanda = belowGrado;
+                        } else if (belowGrado.toLowerCase() === "tanda") {
+                            // Label "tanda" is below "grado", so its value is to the right or below it
+                            if (rows[r + 1][c + 1]) meta.tanda = String(rows[r + 1][c + 1]).trim();
+                            else if (rows[r + 2] && rows[r + 2][c]) meta.tanda = String(rows[r + 2][c]).trim();
+                        } else if (!meta.tanda) {
+                            // Fallback: just store the cell below if tanda is still empty
+                            meta.tanda = belowGrado;
+                        }
+                    }
+                }
+            }
         }
 
         console.log("📊 Metadata Detected:", meta);
@@ -190,10 +227,26 @@ export const ExcelImport = {
         const cfg = this.getConfig();
 
         const cleanVal = (val) => {
-            if (typeof val === 'number') return Math.round(val);
-            if (!val) return "";
+            if (val === undefined || val === null || val === '') return "";
+            if (typeof val === 'number') {
+                const rounded = Math.round(val);
+                if (rounded < 0) return 0;
+                if (rounded > 100) return 100; // Cap at 100
+                return rounded;
+            }
+
+            const strVal = String(val).trim().toLowerCase();
+            if (strVal === "") return "";
+            // Handle specific text values if necessary (e.g. absent/excused -> 0 or empty)
+            if (strVal.includes("aus") || strVal.includes("exc")) return "";
+
             const num = parseFloat(val);
-            return isNaN(num) ? "" : Math.round(num);
+            if (isNaN(num)) return ""; // Silently ignore text
+
+            const rounded = Math.round(num);
+            if (rounded < 0) return 0;
+            if (rounded > 100) return 100;
+            return rounded;
         };
 
         const getData = (indices) => indices ? indices.map(idx => cleanVal(row[idx])) : [];

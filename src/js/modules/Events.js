@@ -8,6 +8,8 @@ import { Toast } from './Toast.js';
 import { InteractionManager } from './Interaction.js';
 import { StudentManager } from './StudentManager.js';
 import { ImportManager } from './ImportManager.js';
+import { ExcelImport } from './ExcelImport.js';
+import { GoogleSheetsSync } from './GoogleSheetsSync.js';
 import { PDFManager } from './PDF.js';
 import { AppUtils } from './AppUtils.js';
 
@@ -31,6 +33,7 @@ export const Events = {
             lastRenderedGrade = initialState.grade; // Init tracker
         }
         AppUI.updateHeader(initialState);
+
         // Apply Default/Saved Layout on Boot
         interactManager.loadPositions();
 
@@ -39,6 +42,13 @@ export const Events = {
             PDFManager.loadTemplate(initialState.grade);
         }
 
+        // Listen for Section Switch to manage Empty State Visibility
+        window.addEventListener('minerd:section-switched', () => {
+            const s = store.getState();
+            if (s.studentList.length === 0) {
+                AppUtils.switchTab('grades');
+            }
+        });
 
         // 1. Store Updates -> UI Render
         store.subscribe((state) => {
@@ -133,6 +143,16 @@ export const Events = {
                     const el = document.getElementById('pdfNameFormat');
                     if (el) el.value = state.settings.pdfNameFormat;
                 }
+
+                // Per-Section Google Sheets URL
+                const elUrl = document.getElementById('googleSheetUrlInput');
+                if (elUrl && document.activeElement !== elUrl) {
+                    if (state.settings.googleSheetUrl !== undefined) {
+                        elUrl.value = state.settings.googleSheetUrl;
+                    } else {
+                        elUrl.value = ''; // Ensure it empties if the current section doesn't have one
+                    }
+                }
             }
 
             // Update Student Info Inputs (Profile)
@@ -204,6 +224,18 @@ export const Events = {
             if (target.dataset.action === 'updateAttendance') {
                 store.updateAttendance(target.dataset.period, target.dataset.field, target.value);
             }
+
+            // Per-Section Google Sheets URL Auto-Save
+            if (target.id === 'googleSheetUrlInput') {
+                store.updateSettings({ googleSheetUrl: target.value }); // Automatically debounces save now
+                // Debounce cloud sync manually to avoid rate limits
+                if (window.AuthManager && window.Parse?.User?.current()) {
+                    if (window._googleUrlSyncTimeout) clearTimeout(window._googleUrlSyncTimeout);
+                    window._googleUrlSyncTimeout = setTimeout(() => {
+                        window.AuthManager.syncUserData();
+                    }, 2000);
+                }
+            }
         });
 
         // 3. Change Events
@@ -261,9 +293,14 @@ export const Events = {
                 store.loadStudent(target.value);
             }
 
-            // Excel Import Files
+            // Excel Import Files – show Preview Modal first
             if (target.id === 'excelFile') {
-                ImportManager.handleExcelFile(target);
+                const files = target.files;
+                if (!files || files.length === 0) return;
+
+                // Use the first file for preview (multi-file handled on confirm)
+                const firstFile = files[0];
+                Events.showExcelPreview(firstFile, target);
             }
             if (target.id === 'rosterFile') {
                 if (target.files.length > 0) ImportManager.importRoster(target.files[0]);
@@ -296,17 +333,59 @@ export const Events = {
             // Grades Binding (Moved here from input)
             if (target.dataset.action === 'updateGrade') {
                 isInternalGridUpdate = true;
+
+                // --- Validation Start ---
+                let val = target.value;
+                if (val !== '') {
+                    let numVal = parseInt(val, 10);
+                    if (isNaN(numVal)) {
+                        val = ''; // Not a number, wipe it
+                    } else if (numVal < 0) {
+                        val = '0';
+                        target.value = '0'; // Update visual
+                        Toast.warning("La nota no puede ser menor a 0.");
+                    } else if (numVal > 100) {
+                        val = '100';
+                        target.value = '100'; // Update visual
+                        Toast.warning("La nota no puede ser mayor a 100.");
+                    } else {
+                        val = String(numVal); // Clean integer string
+                    }
+                }
+                // --- Validation End ---
+
                 store.updateGrade(
                     parseInt(target.dataset.sindex),
                     parseInt(target.dataset.cindex),
                     target.dataset.field,
-                    target.value
+                    val
                 );
                 setTimeout(() => isInternalGridUpdate = false, 0);
             }
             if (target.dataset.action === 'updateRecovery') {
                 isInternalGridUpdate = true;
-                store.updateGrade(parseInt(target.dataset.sindex), -1, 'recovery', target.value);
+
+                // --- Validation Start ---
+                let val = target.value;
+                if (val !== '') {
+                    let numVal = parseInt(val, 10);
+                    if (isNaN(numVal)) {
+                        val = '';
+                    } else if (numVal < 0) {
+                        val = '0';
+                        target.value = '0';
+                        Toast.warning("La nota no puede ser menor a 0.");
+                    } else if (numVal > 100) {
+                        val = '100';
+                        target.value = '100';
+                        Toast.warning("La nota no puede ser mayor a 100.");
+                    } else {
+                        val = String(numVal);
+                    }
+                }
+                // --- Validation End ---
+
+                store.updateGrade(parseInt(target.dataset.sindex), -1, 'recovery', val);
                 setTimeout(() => isInternalGridUpdate = false, 0);
             }
             if (target.dataset.action === 'updateObservation') {
@@ -414,8 +493,34 @@ export const Events = {
 
             // Project & PDF
             if (target.closest('#btnExportProject')) Events.exportProject();
+            if (target.closest('#btnDownloadCurrent')) PDFManager.downloadCurrent();
             if (target.closest('#btnPrintBatch')) PDFManager.generateBatchPDF();
             if (target.closest('#btnZipBatch')) PDFManager.generateBatchZip();
+
+            // Google Sheets Sync
+            if (target.closest('#btnSyncGoogleSheet')) {
+                const btn = target.closest('#btnSyncGoogleSheet');
+                const originalText = btn.innerHTML;
+                const url = document.getElementById('googleSheetUrlInput').value;
+
+                if (!url) {
+                    Toast.warning("Debes pegar el link de Google Sheets primero.");
+                    return;
+                }
+
+                btn.innerHTML = '⏳ Traer...';
+                btn.disabled = true;
+
+                GoogleSheetsSync.fetchXLSXFromLink(url).then(fakeFile => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    if (fakeFile) Events.showExcelPreview(fakeFile, null);
+                }).catch(err => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    Toast.error(err.message);
+                });
+            }
 
             // Export Layout
             if (target.closest('#btnExportLayout')) {
@@ -446,6 +551,14 @@ export const Events = {
                 document.getElementById('excelFile').value = '';
             }
             if (target.id === 'btnConfirmImport') ImportManager.processBatchImport();
+
+            // Template Download Modal
+            if (target.closest('#btnOpenTemplateModal')) {
+                document.getElementById('templateModal').classList.remove('hidden');
+            }
+            if (target.closest('#btnCloseTemplateModal')) {
+                document.getElementById('templateModal').classList.add('hidden');
+            }
 
             // Manual Migration (V1)
             if (target.id === 'btn-migrate-v1') {
@@ -543,5 +656,108 @@ export const Events = {
             }
         };
         reader.readAsText(file);
+    },
+
+    /**
+     * Excel Import Preview Modal
+     * Parses the file, shows a preview, and imports only after user confirms.
+     */
+    showExcelPreview: async function (file, inputEl) {
+        try {
+            // Parse the file for a preview
+            const parsed = await ExcelImport.getStudents(file);
+            const students = parsed.students || [];
+            const meta = parsed.meta || {};
+            const warnings = [];
+
+            // --- Sanitation Check: warn about bad grades ---
+            let badGradeCount = 0;
+            if (parsed.rows) {
+                const cfg = ExcelImport.getConfig();
+                for (let i = (cfg.startRow || 3); i < parsed.rows.length; i++) {
+                    const row = parsed.rows[i];
+                    if (!row) continue;
+                    for (let c = 2; c < row.length; c++) {
+                        const v = row[c];
+                        if (v === undefined || v === null || v === '') continue;
+                        const n = parseFloat(v);
+                        if (isNaN(n) || n < 0 || n > 100) badGradeCount++;
+                    }
+                }
+            }
+            if (badGradeCount > 0) {
+                warnings.push(`${badGradeCount} celda(s) con valores inválidos (texto o fuera de rango 0-100) serán ignoradas.`);
+            }
+            if (students.length === 0) {
+                warnings.push("No se detectaron estudiantes en este archivo. Verifica el formato.");
+            }
+
+            // --- Fill Modal ---
+            document.getElementById('excelPreviewFileName').textContent = file.name;
+            document.getElementById('excelPreviewCount').textContent = students.length;
+            document.getElementById('excelPreviewSection').textContent = meta.seccion || meta.grado || '—';
+            document.getElementById('excelPreviewShift').textContent = meta.tanda || '—';
+
+            // Warnings
+            const warningsEl = document.getElementById('excelPreviewWarnings');
+            const warningListEl = document.getElementById('excelPreviewWarningList');
+            warningListEl.innerHTML = '';
+            if (warnings.length > 0) {
+                warnings.forEach(w => {
+                    const li = document.createElement('li');
+                    li.textContent = w;
+                    warningListEl.appendChild(li);
+                });
+                warningsEl.classList.remove('hidden');
+            } else {
+                warningsEl.classList.add('hidden');
+            }
+
+            // Student list preview (show first 8)
+            const listEl = document.getElementById('excelPreviewList');
+            listEl.innerHTML = '';
+            const previewStudents = students.slice(0, 8);
+            previewStudents.forEach((s, idx) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center gap-2 py-0.5';
+                div.innerHTML = `<span class="text-gray-400 w-5 text-right">${idx + 1}.</span><span class="text-gray-700">${s.name}</span>`;
+                listEl.appendChild(div);
+            });
+            if (students.length > 8) {
+                const more = document.createElement('div');
+                more.className = 'text-gray-400 italic pt-1';
+                more.textContent = `… y ${students.length - 8} más`;
+                listEl.appendChild(more);
+            }
+
+            // --- Show Modal ---
+            const modal = document.getElementById('excelPreviewModal');
+            modal.classList.remove('hidden');
+
+            // --- Wire Buttons ---
+            const cancelBtn = document.getElementById('btnExcelPreviewCancel');
+            const confirmBtn = document.getElementById('btnExcelPreviewConfirm');
+
+            // Clone to remove stale listeners
+            const newCancel = cancelBtn.cloneNode(true);
+            const newConfirm = confirmBtn.cloneNode(true);
+            cancelBtn.parentNode.replaceChild(newCancel, cancelBtn);
+            confirmBtn.parentNode.replaceChild(newConfirm, confirmBtn);
+
+            newCancel.addEventListener('click', () => {
+                modal.classList.add('hidden');
+                if (inputEl) inputEl.value = '';
+            });
+
+            newConfirm.addEventListener('click', () => {
+                modal.classList.add('hidden');
+                ImportManager.handleExcelFile(inputEl || { files: [file] });
+            });
+
+        } catch (err) {
+            console.error("Excel Preview Error:", err);
+            Toast.error("Error leyendo el archivo Excel: " + err.message);
+            if (inputEl) inputEl.value = '';
+        }
     }
 };

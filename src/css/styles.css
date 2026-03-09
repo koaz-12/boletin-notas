@@ -60,6 +60,12 @@ body {
     }
 }
 
+@keyframes shimmer {
+    100% {
+        transform: translateX(100%);
+    }
+}
+
 .animate-fade-in {
     animation: fadeIn 0.3s ease-out forwards;
 }
@@ -100,7 +106,38 @@ body {
     position: relative;
     box-sizing: border-box;
     overflow: hidden;
-    /* Evitar desbordes */
+    /* Evitar desbordes verticales no deseados */
+}
+
+/* Mobile Wrapper for A4 Pages */
+.a4-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 20px;
+    /* Space for scrollbar */
+}
+
+.a4-wrapper .a4-page {
+    /* Ensure margins don't collapse in the scroll view */
+    margin-left: auto;
+    margin-right: auto;
+}
+
+@media (max-width: 1024px) {
+    .a4-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        /* Important for scroll */
+    }
+
+    .a4-wrapper .a4-page {
+        margin-left: 10px;
+        margin-right: 10px;
+        flex-shrink: 0;
+        /* Prevent shrinking below 297mm */
+    }
 }
 
 /* Canvas para el fondo PDF */
@@ -350,8 +387,12 @@ body.edit-mode-active .draggable-field:hover::after {
         height: 210mm;
         /* Explicit A4 height */
         overflow: hidden;
-        background: transparent !important;
-        /* Importante para ver el canvas */
+        background: white !important;
+        /* Garantiza fondo blanco en todos los browsers */
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        /* Firefox */
         border: none !important;
         position: relative;
         /* Ensure absolute children work */

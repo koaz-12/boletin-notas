@@ -104,10 +104,6 @@ export const AppUI = {
         if (btnRestore) {
             btnRestore.addEventListener('click', async () => {
                 if (confirm("¿Estás seguro de restaurar? Esto sobrescribirá tus datos locales con la versión de la nube.")) {
-                    // Since AuthManager is imported script-side but not fully exposed to AppUI module scope in this file?
-                    // Verify imports. AuthManager is NOT imported in AppUI.js.
-                    // I need to import it or dispatch event.
-                    // Let's import it.
                     const { AuthManager } = await import('./AuthManager.js');
                     AuthManager.restoreFromCloud();
                 }
@@ -115,11 +111,35 @@ export const AppUI = {
         }
         this.renderSectionTabs(); // Initial Render of Tabs
 
-        // Subscribe to Store Updates for LIVE Tab Updates
+        // --------------------------------------------------------
+        // SILENT AUTO-SYNC (3 Second Debounce)
+        // --------------------------------------------------------
+        let syncTimeout = null;
+
+        // Subscribe to Store Updates for LIVE Tab Updates and Background Sync
         store.subscribe(() => {
             this.renderSectionTabs();
-            // Trigger Auto-Save on ANY data change
-            if (typeof debouncedAutoSave === 'function') debouncedAutoSave();
+
+            // Only attempt sync if a module is accessible AND it's not the admin
+            const user = Parse.User.current();
+            const isAdmin = user && user.get("username") === "soporte_admin";
+
+            if (window.AuthManager && user && !isAdmin) {
+                if (syncTimeout) clearTimeout(syncTimeout);
+
+                syncTimeout = setTimeout(() => {
+                    console.log("⏱️ Auto-Sync triggered due to inactivity...");
+                    // Flash the Sync Button lightly to show background activity
+                    const syncBtn = document.getElementById('btn-cloud-save');
+                    if (syncBtn) {
+                        syncBtn.classList.add('bg-green-100', 'border-green-300');
+                        setTimeout(() => syncBtn.classList.remove('bg-green-100', 'border-green-300'), 1500);
+                    }
+
+                    // Call the AuthManager sync seamlessly
+                    window.AuthManager.syncUserData();
+                }, 3000); // Wait 3 seconds after last edit
+            }
         });
     },
 
@@ -171,7 +191,7 @@ export const AppUI = {
 
             tab.innerHTML = `
                 <div class="flex items-center justify-between w-full">
-                    <span class="${nameClass} truncate max-w-[90px]" title="Doble clic para renombrar" ondblclick="event.stopPropagation(); AppUI.promptRename('${sec.id}', '${sec.name}')">${sec.name}</span>
+                    <span class="${nameClass} truncate max-w-[90px] section-name-span cursor-text" title="Doble clic para renombrar" style="user-select: none;">${sec.name}</span>
                     <button class="delete-btn opacity-0 group-hover:opacity-100 text-[10px] ml-2 hover:text-red-500 hover:bg-red-100 rounded-full w-4 h-4 flex items-center justify-center transition-all ${isActive ? 'block' : 'hidden'}">✕</button>
                 </div>
                 <div class="flex items-center gap-1">
@@ -179,6 +199,15 @@ export const AppUI = {
                     <span class="${detailClass}">${sec.grade}º - ${sec.shift}</span>
                 </div>
             `;
+
+            // Attach Double Click for Rename
+            const nameSpan = tab.querySelector('.section-name-span');
+            if (nameSpan) {
+                nameSpan.ondblclick = (e) => {
+                    e.stopPropagation();
+                    AppUI.promptRename(sec.id, sec.name);
+                };
+            }
 
             // Delete Action
             const btn = tab.querySelector('.delete-btn');
@@ -197,10 +226,33 @@ export const AppUI = {
         addBtn.className = "flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-blue-50 text-gray-400 hover:text-blue-600 cursor-pointer ml-2 transition-colors border border-dashed border-gray-300 mb-1 opacity-70 hover:opacity-100";
         addBtn.title = "Crear Nueva Sección";
         addBtn.innerHTML = '<span class="text-xl font-bold">+</span>';
+
         addBtn.onclick = () => {
-            AppUI.prompt("Nueva Sección", "Nombre de la Sección (ej: 4to A):", (name) => {
-                store.createNewSectionInternal(name, "1", "Matutina");
-            }, "4to A");
+            // Open the new Custom Modal
+            const modal = document.getElementById('create-section-modal');
+            const nameInput = document.getElementById('new-section-name');
+            const gradeSelect = document.getElementById('new-section-grade');
+            const shiftSelect = document.getElementById('new-section-shift');
+            const confirmBtn = document.getElementById('btn-confirm-create-section');
+
+            if (modal && confirmBtn) {
+                nameInput.value = ''; // clear previous
+                modal.classList.remove('hidden');
+                nameInput.focus();
+
+                // Remove old listeners to prevent multiple fires
+                const newConfirmBtn = confirmBtn.cloneNode(true);
+                confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+
+                newConfirmBtn.onclick = () => {
+                    const secName = nameInput.value.trim() || 'Nueva Sección';
+                    const secGrade = gradeSelect.value || '1';
+                    const secShift = shiftSelect.value || 'Matutina';
+
+                    store.createNewSectionInternal(secName, secGrade, secShift);
+                    modal.classList.add('hidden');
+                };
+            }
         };
         container.appendChild(addBtn);
     },

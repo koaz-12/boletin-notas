@@ -14,6 +14,29 @@ export const GridRenderer = {
 
         const grade = parseInt(store.getState().grade) || 1;
         const isAdvanced = grade >= 3;
+        const studentList = store.getState().studentList || [];
+
+        // EMPTY STATE HANDLING
+        if (studentList.length === 0) {
+            container.innerHTML = `
+            <div class="flex flex-col items-center justify-center p-12 bg-white rounded-xl border border-dashed border-gray-300 shadow-sm mt-4 min-h-[400px]">
+                <div class="w-20 h-20 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-6">
+                    <span class="text-4xl">📚</span>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800 mb-2">Comienza a Registrar Calificaciones</h3>
+                <p class="text-gray-500 text-center max-w-md mb-8 text-sm">
+                    Esta sección está vacía. Añade a tu primer estudiante manualmente o importa tu lista completa desde un archivo Excel de MINERD.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 w-full sm:w-auto mt-4 px-4 sm:px-0">
+                    <button onclick="document.getElementById('btnAddStudent')?.click()" class="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all shadow-md transform hover:-translate-y-1">
+                        <span class="text-xl leading-none">➕</span> Añadir Manualmente
+                    </button>
+                    <button onclick="document.getElementById('excelFile')?.click()" class="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold transition-all shadow-md transform hover:-translate-y-1">
+                        <span class="text-xl leading-none">📊</span> Importar Excel
+                    </button>
+            </div>`;
+            return;
+        }
 
         if (!isAdvanced) {
             // ORIGINAL LAYOUT (Grades 1-3)
@@ -50,7 +73,7 @@ export const GridRenderer = {
                 sub.competencies.forEach((comp, cIndex) => {
                     ['p1', 'p2', 'p3', 'p4'].forEach(p => {
                         html += `<td class="border p-0 text-center min-w-[30px]">
-                            <input type="number" min="0" class="w-full text-center border-none focus:ring-1 focus:ring-blue-500 h-5 text-[10px] font-bold"
+                            <input type="number" min="0" max="100" class="w-full text-center border-none focus:ring-1 focus:ring-blue-500 h-5 text-[10px] font-bold"
                                 value="${comp[p] || ''}" 
                                 data-action="updateGrade" 
                                 data-sindex="${sIndex}" 
@@ -127,16 +150,16 @@ export const GridRenderer = {
                 sub.competencies.forEach((comp, cIndex) => {
                     ['1', '2', '3', '4'].forEach(i => {
                         // P{i}
-                        html += `<td class="border p-0 text-center min-w-[30px]"><input type="number" min="0" class="w-full text-center border-none focus:ring-1 h-5 text-[10px] font-bold" value="${comp['p' + i] || ''}" data-action="updateGrade" data-sindex="${sIndex}" data-cindex="${cIndex}" data-field="p${i}"></td>`;
+                        html += `<td class="border p-0 text-center min-w-[30px]"><input type="number" min="0" max="100" class="w-full text-center border-none focus:ring-1 h-5 text-[10px] font-bold" value="${comp['p' + i] || ''}" data-action="updateGrade" data-sindex="${sIndex}" data-cindex="${cIndex}" data-field="p${i}"></td>`;
                         // RP{i}
-                        html += `<td class="border p-0 text-center bg-red-50 min-w-[30px]"><input type="number" min="0" class="w-full text-center border-none focus:ring-1 h-5 text-[10px] font-bold text-red-600" value="${comp['rp' + i] || ''}" data-action="updateGrade" data-sindex="${sIndex}" data-cindex="${cIndex}" data-field="rp${i}"></td>`;
+                        html += `<td class="border p-0 text-center bg-red-50 min-w-[30px]"><input type="number" min="0" max="100" class="w-full text-center border-none focus:ring-1 h-5 text-[10px] font-bold text-red-600" value="${comp['rp' + i] || ''}" data-action="updateGrade" data-sindex="${sIndex}" data-cindex="${cIndex}" data-field="rp${i}"></td>`;
                     });
                 });
 
                 // Finals per comp
                 sub.competencies.forEach((comp, cIndex) => {
                     html += `<td class="border p-0 bg-gray-50 text-center min-w-[30px]">
-                        <input type="number" min="0" class="w-full text-center font-bold text-[10px] bg-transparent focus:bg-white h-5"
+                        <input type="number" min="0" max="100" class="w-full text-center font-bold text-[10px] bg-transparent focus:bg-white h-5"
                             value="${comp.final || ''}" data-action="updateGrade" data-sindex="${sIndex}" data-cindex="${cIndex}" data-field="final">
                     </td>`;
                 });
@@ -144,15 +167,15 @@ export const GridRenderer = {
                 // Subject Finals
                 html += `
                 <td class="border p-0 bg-blue-50 text-center min-w-[30px]"> <!-- C.F (Index 29) -->
-                    <input type="number" min="0" class="w-full text-center font-bold text-[10px] bg-transparent focus:bg-white h-5"
+                    <input type="number" min="0" max="100" class="w-full text-center font-bold text-[10px] bg-transparent focus:bg-white h-5"
                         value="${sub.final || ''}" data-action="updateGrade" data-sindex="${sIndex}" data-cindex="-1" data-field="final">
                 </td>
                 <td class="border p-0 bg-red-50 text-center min-w-[30px]"> <!-- R.F (Index 30) -->
-                    <input type="number" min="0" class="w-full text-center font-bold text-[10px] text-red-700 bg-transparent focus:bg-white h-5"
+                    <input type="number" min="0" max="100" class="w-full text-center font-bold text-[10px] text-red-700 bg-transparent focus:bg-white h-5"
                         value="${sub.final_recovery || ''}" data-action="updateGrade" data-sindex="${sIndex}" data-cindex="-1" data-field="final_recovery">
                 </td>
                 <td class="border p-0 bg-red-100 text-center min-w-[30px]"> <!-- R.E (Index 31) -->
-                    <input type="number" min="0" class="w-full text-center font-bold text-[10px] text-red-900 bg-transparent focus:bg-white h-5"
+                    <input type="number" min="0" max="100" class="w-full text-center font-bold text-[10px] text-red-900 bg-transparent focus:bg-white h-5"
                         value="${sub.special_recovery || ''}" data-action="updateGrade" data-sindex="${sIndex}" data-cindex="-1" data-field="special_recovery">
                 </td>
                 </tr>`;

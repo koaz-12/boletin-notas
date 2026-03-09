@@ -123,7 +123,7 @@ export const ObservationsManager = {
 
         const panel = document.createElement('div');
         panel.id = 'obs-bank-panel';
-        panel.className = "fixed inset-y-0 right-0 w-80 bg-white shadow-2xl z-50 transform translate-x-full transition-transform duration-300 flex flex-col";
+        panel.className = "hidden fixed inset-y-0 right-0 w-80 bg-white shadow-2xl z-50 transform translate-x-full transition-transform duration-300 flex flex-col";
         panel.innerHTML = `
             <div class="p-4 bg-indigo-600 text-white flex justify-between items-center shadow-md">
                 <h3 class="font-bold flex items-center gap-2">
@@ -236,11 +236,18 @@ export const ObservationsManager = {
     togglePanel: function (show, targetInput = null) {
         const panel = document.getElementById('obs-bank-panel');
         if (show) {
-            panel.classList.remove('translate-x-full');
+            panel.classList.remove('hidden');
+            // Tiny timeout to allow DOM to render display:block before animating
+            setTimeout(() => panel.classList.remove('translate-x-full'), 10);
             this.activeTargetInput = targetInput;
         } else {
             panel.classList.add('translate-x-full');
             this.activeTargetInput = null;
+            setTimeout(() => {
+                if (panel.classList.contains('translate-x-full')) {
+                    panel.classList.add('hidden');
+                }
+            }, 300);
         }
     },
 
@@ -494,10 +501,12 @@ export const ObservationsManager = {
             // Let's keep it simple: Average of ALL competence values for that period.
 
             sub.competencies.forEach(comp => {
-                const val = parseFloat(comp[period]);
-                if (!isNaN(val) && val > 0) {
-                    total += val;
-                    count++;
+                if (comp[period] !== undefined && comp[period] !== null && comp[period].toString().trim() !== "") {
+                    const val = parseFloat(comp[period]);
+                    if (!isNaN(val)) {
+                        total += val;
+                        count++;
+                    }
                 }
             });
         });

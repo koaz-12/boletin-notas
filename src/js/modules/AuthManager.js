@@ -64,6 +64,81 @@ export const AuthManager = {
             });
         }
 
+        // Feedback / Report Bugs Button
+        const btnFeedback = document.getElementById('menu-feedback');
+
+        // Modals
+        const modalFeedback = document.getElementById('feedback-modal');
+        const btnCloseFeedback = document.getElementById('btn-close-feedback');
+        const btnCancelFeedback = document.getElementById('btn-cancel-feedback');
+        const btnSubmitFeedback = document.getElementById('btn-submit-feedback');
+
+        const modalInbox = document.getElementById('feedback-inbox-modal');
+        const btnCloseInbox = document.getElementById('btn-close-inbox');
+        const btnRefreshInbox = document.getElementById('btn-refresh-inbox');
+        const inboxList = document.getElementById('feedback-inbox-list');
+
+
+
+        if (btnFeedback) {
+            btnFeedback.addEventListener('click', (e) => {
+                e.preventDefault();
+                dropdown.classList.add('hidden');
+
+                const currentUser = Parse.User.current();
+                const isAdmin = currentUser && currentUser.get("username") === "soporte_admin";
+
+                if (isAdmin && modalInbox) {
+                    // Open Admin Inbox
+                    modalInbox.classList.remove('hidden');
+                    this.loadFeedbackInbox();
+                } else if (modalFeedback) {
+                    // Open User Submission Form
+                    modalFeedback.classList.remove('hidden');
+                }
+            });
+
+            // User Submission Form Logic
+            const closeFeedbackModal = () => modalFeedback.classList.add('hidden');
+            if (btnCloseFeedback) btnCloseFeedback.addEventListener('click', closeFeedbackModal);
+            if (btnCancelFeedback) btnCancelFeedback.addEventListener('click', closeFeedbackModal);
+
+            if (btnSubmitFeedback) {
+                btnSubmitFeedback.addEventListener('click', async () => {
+                    const type = document.getElementById('feedback-type').value;
+                    const text = document.getElementById('feedback-text').value.trim();
+                    if (!text) return Toast.warning("Por favor escribe tu sugerencia o detalle.");
+
+                    const originalText = btnSubmitFeedback.innerHTML;
+                    btnSubmitFeedback.disabled = true;
+                    btnSubmitFeedback.innerHTML = '<div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>';
+
+                    try {
+                        const Feedback = Parse.Object.extend("Feedback");
+                        const fb = new Feedback();
+                        fb.set("user", Parse.User.current()?.get("username") || "Anonymous");
+                        fb.set("type", type);
+                        fb.set("message", text);
+                        await fb.save();
+
+                        Toast.success("¡Gracias! Tu reporte ha sido enviado con éxito.");
+                        document.getElementById('feedback-text').value = '';
+                        closeFeedbackModal();
+                    } catch (err) {
+                        console.error("Error saving feedback", err);
+                        Toast.error("Lo sentimos, no se pudo enviar el reporte. Por favor intenta más tarde.");
+                    } finally {
+                        btnSubmitFeedback.disabled = false;
+                        btnSubmitFeedback.innerHTML = originalText;
+                    }
+                });
+            }
+
+            // Admin Inbox Logic
+            if (btnCloseInbox) btnCloseInbox.addEventListener('click', () => modalInbox?.classList.add('hidden'));
+            if (btnRefreshInbox) btnRefreshInbox.addEventListener('click', () => this.loadFeedbackInbox());
+        }
+
         // Settings Button (Placeholder)
         // Settings Button & Logic
         const btnSettings = document.getElementById('menu-settings');
@@ -201,13 +276,22 @@ export const AuthManager = {
 
                 // Check Mode by Button Text
                 const submitBtn = form.querySelector('button[type="submit"]');
-                const isSignup = submitBtn.textContent.includes('Registrar' || 'Crear');
-                console.log(`🔒 AuthManager: Mode ${isSignup ? 'Signup' : 'Login'}`);
+                const isSignupAction = submitBtn.textContent.includes('Registrar') || submitBtn.textContent.includes('Crear');
+                console.log(`🔒 AuthManager: Mode ${isSignupAction ? 'Signup' : 'Login'}`);
 
-                if (isSignup) {
-                    await this.signup(u, p);
-                } else {
-                    await this.login(u, p);
+                const originalText = submitBtn.textContent;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>';
+
+                try {
+                    if (isSignupAction) {
+                        await this.signup(u, p);
+                    } else {
+                        await this.login(u, p);
+                    }
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
                 }
             });
         } else {
@@ -304,6 +388,13 @@ export const AuthManager = {
         const initialEl = document.getElementById('user-avatar-initial');
         const emailEl = document.getElementById('user-email-display');
 
+        const mainPanel = document.getElementById('main-control-panel');
+        const sectionsBar = document.getElementById('sections-bar');
+        const cloudGroup = document.querySelector('.max-w-7xl.mx-auto.text-center .mt-3');
+        const btnHistory = document.getElementById('menu-history');
+        const btnTrash = document.getElementById('menu-trash');
+        const btnSettings = document.getElementById('menu-settings');
+
         if (user && menuContainer) {
             menuContainer.classList.remove('hidden');
             const username = user.get("username");
@@ -313,8 +404,47 @@ export const AuthManager = {
             if (emailEl) emailEl.textContent = email;
             if (initialEl) initialEl.textContent = username.charAt(0).toUpperCase();
 
+            const mainHeaderContainer = document.getElementById('main-header-container');
+
+            if (username === 'soporte_admin') {
+                if (mainPanel) mainPanel.classList.add('hidden');
+                if (sectionsBar) sectionsBar.classList.add('hidden');
+                if (cloudGroup) cloudGroup.classList.add('hidden');
+                if (btnHistory) btnHistory.classList.add('hidden');
+                if (btnTrash) btnTrash.classList.add('hidden');
+                if (btnSettings) btnSettings.classList.add('hidden');
+                if (mainHeaderContainer) mainHeaderContainer.classList.add('hidden');
+
+                // Hide bulletin and print controls
+                document.querySelectorAll('.a4-wrapper').forEach(el => el.classList.add('hidden'));
+                const printFloat = document.querySelector('.fixed.bottom-6.right-6.z-\\[9000\\]');
+                if (printFloat) printFloat.classList.add('hidden');
+
+                // Admin doesn't need data sync of students
+                setTimeout(() => {
+                    this.loadFeedbackInbox();
+                    const modalInbox = document.getElementById('feedback-inbox-modal');
+                    if (modalInbox) modalInbox.classList.remove('hidden');
+                }, 500);
+            } else {
+                if (mainPanel) mainPanel.classList.remove('hidden');
+                if (sectionsBar) sectionsBar.classList.remove('hidden');
+                if (cloudGroup) cloudGroup.classList.remove('hidden');
+                if (btnHistory) btnHistory.classList.remove('hidden');
+                if (btnTrash) btnTrash.classList.remove('hidden');
+                if (btnSettings) btnSettings.classList.remove('hidden');
+                if (mainHeaderContainer) mainHeaderContainer.classList.remove('hidden');
+
+                // Show bulletin and print controls
+                document.querySelectorAll('.a4-wrapper').forEach(el => el.classList.remove('hidden'));
+                const printFloat = document.querySelector('.fixed.bottom-6.right-6.z-\\[9000\\]');
+                if (printFloat) printFloat.classList.remove('hidden');
+            }
+
         } else if (menuContainer) {
             menuContainer.classList.add('hidden');
+            if (mainPanel) mainPanel.classList.add('hidden');
+            if (sectionsBar) sectionsBar.classList.add('hidden');
         }
     },
 
@@ -324,131 +454,78 @@ export const AuthManager = {
             console.log("👤 Logged in as: ", user.get("username"));
             this.showLogin(false);
             this.updateUserUI(user);
-            this.syncUserData();
+            // Always force pull on app start to guarantee latest cloud data
+            this.syncUserData(true);
         } else {
             console.log("👤 No user session");
             this.showLogin(true);
         }
     },
 
-    syncUserData: async function () {
-        this.updateSyncStatus('syncing'); // VISUAL FEEDBACK START
-
-        // === GLOBAL IMPORT LOCK CHECK (Set by app.js) ===
-        if (window.__MINERD_IMPORT_LOCK__) {
-            console.log("🔒 [Sync] Global Import Lock detected. Uploading local data instead of pulling from cloud.");
-            window.__MINERD_IMPORT_LOCK__ = false; // Clear flag
-            localStorage.removeItem('minerd_import_lock');
-
-            const localBackup = store.exportFullBackup();
-            const saveResult = await CloudStorage.saveData(localBackup, 'manual');
-
-            if (saveResult.success) {
-                this.updateSyncStatus('success', 'Importación Guardada');
-                Toast.show("✅ Respaldo V1 sincronizado a la nube.", "success");
-            } else {
-                this.updateSyncStatus('error');
-                Toast.show("⚠️ Error guardando importación: " + saveResult.error, "error");
-            }
-            return; // EXIT
+    syncUserData: async function (forcePull = false) {
+        const user = this.currentUser();
+        if (user && user.get("username") === "soporte_admin") {
+            return; // Admin does not sync school data
         }
 
-        // === IMPORT LOCK CHECK ===
-        // If a V1 import just happened, skip cloud pull and upload local data instead
-        const importLock = localStorage.getItem('minerd_import_lock');
-        console.log(`[Sync] Import Lock Check: ${importLock ? 'Found' : 'Not Found'}`);
+        this.updateSyncStatus('syncing');
 
-        if (importLock) {
-            const lockTime = parseInt(importLock, 10);
-            const now = Date.now();
-            const ageSeconds = (now - lockTime) / 1000;
-
-            // Allow 5 minutes (300 seconds) for user to log in after import
-            if (ageSeconds < 300) {
-                console.log(`🔒 Import Lock Active (${ageSeconds.toFixed(1)}s old). Uploading local data instead of pulling from cloud.`);
-                // Clear the lock
-                localStorage.removeItem('minerd_import_lock');
-
-                // Force upload local data
-                const localBackup = store.exportFullBackup();
-                console.log(`[Sync] Uploading local backup with ${localBackup.sections?.length || 0} sections`);
-
-                const saveResult = await CloudStorage.saveData(localBackup, 'manual');
-
-                if (saveResult.success) {
-                    this.updateSyncStatus('success', 'Importación Guardada');
-                    Toast.show("✅ Respaldo V1 sincronizado a la nube.", "success");
-                } else {
-                    this.updateSyncStatus('error');
-                    Toast.show("⚠️ Error guardando importación: " + saveResult.error, "error");
-                }
-                return; // EXIT - do not proceed with normal sync
-            } else {
-                console.log(`[Sync] Import Lock Expired (${ageSeconds.toFixed(1)}s old). Clearing.`);
-                // Lock expired, clear it
-                localStorage.removeItem('minerd_import_lock');
-            }
-        }
+        // Clean up legacy import locks
+        if (window.__MINERD_IMPORT_LOCK__) delete window.__MINERD_IMPORT_LOCK__;
+        localStorage.removeItem('minerd_import_lock');
 
         const result = await CloudStorage.loadData();
 
         if (!result.success) {
-            this.updateSyncStatus('error'); // VISUAL FEEDBACK ERROR
-
-            // Check for network error
+            this.updateSyncStatus('error');
             if (result.error && (result.error.toString().includes("Network") || !navigator.onLine)) {
                 AppUI.updateConnectionStatus('offline');
             }
-
             Toast.show("⚠️ Error conectando nube: " + result.error, "error");
             return;
         }
 
-        // Success implies online
         AppUI.updateConnectionStatus('online');
 
-        // Smart Sync Strategy: Timestamp Comparison
         const localBackup = store.exportFullBackup();
         const localTime = localBackup.timestamp || 0;
         const cloudTime = (result.data && result.data.timestamp) ? result.data.timestamp : 0;
 
-        // Check if Local is effectively "Empty/New" (fresh install)
-        // A fresh install might have 0 sections or 1 empty default section and NO students.
         let hasStudents = false;
         if (localBackup.data) {
-            // Check any section for students
             Object.values(localBackup.data).forEach(secData => {
-                // Fix: Data might be wrapped in { state: ... } or flat depending on version
                 const state = secData.state || secData;
                 const list = state.studentList;
-
-                // Debug Log
-                console.log(`[Sync] Checking Section:`, { hasState: !!secData.state, listLen: list?.length });
-
                 if (list && list.length > 0) hasStudents = true;
             });
         }
 
-        // Failsafe: Check section names for "Importado" to prevent overwriting migrations
         let hasImportedSection = false;
         if (localBackup.sections && Array.isArray(localBackup.sections)) {
             if (localBackup.sections.some(s => s.name && s.name.includes("Importado"))) {
                 hasImportedSection = true;
-                console.log("[Sync] Found 'Importado' section. Treating as NOT empty.");
             }
         }
 
         const isLocalEmpty = !hasStudents && !hasImportedSection;
 
-        console.log(`☁️ Sync Check: Local (${new Date(localTime).toLocaleTimeString()}) vs Cloud (${new Date(cloudTime).toLocaleTimeString()})`);
-        console.log(`☁️ Is Local Empty? ${isLocalEmpty} (Students: ${hasStudents}, ImportFlag: ${hasImportedSection})`);
+        // FORCE PULL: User clicked Restore manually or Initial Login
+        if (forcePull && result.data && !result.empty) {
+            console.log("📥 Force Pulling from Cloud...");
+            if (store.importFullBackup(result.data)) {
+                this.updateSyncStatus('success', 'Restaurado');
+                Toast.show("✅ Datos restaurados desde la nube.", "success");
+            } else {
+                this.updateSyncStatus('error');
+                Toast.show("❌ Error restaurando datos.", "error");
+            }
+            return;
+        }
 
         // Case 0: Local is Empty -> ALWAYS Pull from Cloud (if cloud has data)
         if (isLocalEmpty && result.data && !result.empty) {
             console.log("☁️ Fresh Install detected. Pulling from cloud...");
-            const success = store.importFullBackup(result.data);
-            if (success) {
-                console.log("🔄 Data synced (Fresh Install)");
+            if (store.importFullBackup(result.data)) {
                 this.updateSyncStatus('success', 'Sincronizado');
                 Toast.show("✅ Datos restaurados desde la nube.", "success");
             } else {
@@ -467,43 +544,41 @@ export const AuthManager = {
             return;
         }
 
-        // Case 2: Local is Newer (e.g. just imported V1 or edited offline) -> Upload Local (Overwrite Cloud)
-        // Add a small buffer (e.g. 1 sec) to avoid loops due to clock skews
+        // Case 4: Sync -> Do nothing if timestamps match perfectly
+        if (localTime === cloudTime) {
+            console.log("☁️ Data is already in sync.");
+            this.updateSyncStatus('success', 'Sincronizado');
+            return;
+        }
+
+        // Case 2: Local is Newer (e.g. edited offline) -> Upload Local (Overwrite Cloud)
         if (localTime > cloudTime) {
-            console.log("☁️ Local is newer, pushing to cloud...");
-            this.updateSyncStatus('saving');
+            console.log("☁️ Local is newer, pushing to cloud silently...");
             await CloudStorage.saveData(localBackup);
             this.updateSyncStatus('success', 'Sincronizado');
-            Toast.show("☁️ Nube actualizada con tus datos recientes.", "success");
+            Toast.show("☁️ Sincronizado en segundo plano.", "info");
             return;
         }
 
         // Case 3: Cloud is Newer -> Download (Overwrite Local)
         if (cloudTime > localTime) {
-            console.log("☁️ Cloud is newer, pulling data...");
-            // Prevent infinite reload loop if import fails or timestamps don't align
-            const success = store.importFullBackup(result.data);
-            if (success) {
-                console.log("🔄 Data synced from cloud logic");
+            console.log("☁️ Cloud is newer, pulling data silently...");
+            if (store.importFullBackup(result.data)) {
                 this.updateSyncStatus('success', 'Sincronizado');
-                Toast.show("✅ Datos sincronizados desde la nube.", "success");
+                Toast.show("📥 Datos actualizados desde la nube.", "info");
             } else {
                 this.updateSyncStatus('error');
                 Toast.show("❌ Error aplicando datos de la nube.", "error");
             }
             return;
         }
-
-        // Case 4: Sync -> Do nothing
-        console.log("☁️ Data is already in sync.");
-        this.updateSyncStatus('success', 'Sincronizado');
     },
 
 
     restoreFromCloud: async function () {
         console.log("🔄 Manual Restore Initiated");
-        Toast.show("📡 Conectando con la nube...", "info");
-        await this.syncUserData();
+        Toast.show("📡 Descargando desde la nube...", "info");
+        await this.syncUserData(true); // <--- FORCE PULL
     },
 
     login: async function (username, password) {
@@ -512,7 +587,8 @@ export const AuthManager = {
             Toast.show("¡Bienvenido, " + user.get("username") + "!", "success");
             this.showLogin(false);
             this.updateUserUI(user);
-            this.syncUserData();
+            // On fresh manual login, force a pull from the cloud to guarantee exact sync
+            this.syncUserData(true);
             return { success: true, user };
         } catch (error) {
             console.error("Login failed", error);
@@ -541,44 +617,277 @@ export const AuthManager = {
     },
 
     logout: async function () {
-        try {
-            if (confirm("¿Cerrar sesión? Esto borrará los datos locales actuales de la vista para proteger tu privacidad.")) {
-                await Parse.User.logOut();
+        const modalLogout = document.getElementById('logout-modal');
+        const btnCancelLogout = document.getElementById('btn-cancel-logout');
+        const btnConfirmLogout = document.getElementById('btn-confirm-logout');
 
-                // Clear Sensitive Local Data
-                localStorage.removeItem('minerd_sections_index');
-                localStorage.removeItem('minerd_current_section_id');
-                localStorage.removeItem('minerd_cloud_id');
-                // Legacy V1 data if present
-                localStorage.removeItem('minerd_boletin_data');
+        if (modalLogout && btnCancelLogout && btnConfirmLogout) {
+            // Show custom modal
+            modalLogout.classList.remove('hidden');
 
-                // Clear all Section Data dynamically
-                Object.keys(localStorage).forEach(key => {
-                    if (key.startsWith('minerd_data_')) {
-                        localStorage.removeItem(key);
-                    }
-                });
+            // Clean up old event listeners if any exist to prevent multiple calls
+            const newCancel = btnCancelLogout.cloneNode(true);
+            const newConfirm = btnConfirmLogout.cloneNode(true);
+            btnCancelLogout.parentNode.replaceChild(newCancel, btnCancelLogout);
+            btnConfirmLogout.parentNode.replaceChild(newConfirm, btnConfirmLogout);
 
-                Toast.show("Sesión cerrada. Limpiando datos...", "info");
-                setTimeout(() => location.reload(), 1500);
+            newCancel.addEventListener('click', () => {
+                modalLogout.classList.add('hidden');
+            });
+
+            newConfirm.addEventListener('click', async () => {
+                modalLogout.classList.add('hidden');
+                try {
+                    await Parse.User.logOut();
+
+                    // Clear Sensitive Local Data
+                    localStorage.removeItem('minerd_sections_index');
+                    localStorage.removeItem('minerd_current_section_id');
+                    localStorage.removeItem('minerd_cloud_id');
+                    // Legacy V1 data if present
+                    localStorage.removeItem('minerd_boletin_data');
+
+                    // Clear all Section Data dynamically
+                    Object.keys(localStorage).forEach(key => {
+                        if (key.startsWith('minerd_data_')) {
+                            localStorage.removeItem(key);
+                        }
+                    });
+
+                    Toast.show("Sesión cerrada. Limpiando datos...", "info");
+                    setTimeout(() => location.reload(), 1500);
+                } catch (error) {
+                    console.error("Logout failed", error);
+                    Toast.show("❌ Error cerrando sesión.", "error");
+                    location.reload();
+                }
+            });
+        } else {
+            // Fallback just in case
+            try {
+                if (confirm("¿Cerrar sesión? Esto borrará los datos locales actuales de la vista para proteger tu privacidad.")) {
+                    await Parse.User.logOut();
+
+                    // Clear Sensitive Local Data
+                    localStorage.removeItem('minerd_sections_index');
+                    localStorage.removeItem('minerd_current_section_id');
+                    localStorage.removeItem('minerd_cloud_id');
+                    // Legacy V1 data if present
+                    localStorage.removeItem('minerd_boletin_data');
+
+                    // Clear all Section Data dynamically
+                    Object.keys(localStorage).forEach(key => {
+                        if (key.startsWith('minerd_data_')) {
+                            localStorage.removeItem(key);
+                        }
+                    });
+
+                    Toast.show("Sesión cerrada. Limpiando datos...", "info");
+                    setTimeout(() => location.reload(), 1500);
+                }
+            } catch (e) {
+                console.error("Logout error", e);
+                location.reload();
             }
-        } catch (e) {
-            console.error("Logout error", e);
-            location.reload();
         }
     },
 
     showLogin: function (show) {
-        const modal = document.getElementById('login-overlay');
-
-        if (!modal) return;
-
+        const overlay = document.getElementById('login-overlay');
+        if (!overlay) return;
         if (show) {
-            modal.classList.remove('hidden');
+            overlay.classList.remove('hidden');
             document.body.classList.add('overflow-hidden'); // Prevent scrolling
         } else {
-            modal.classList.add('hidden');
+            overlay.classList.add('hidden');
             document.body.classList.remove('overflow-hidden');
+        }
+    },
+
+    _cachedFeedbacks: [],
+    _currentFilter: 'pending', // 'all', 'pending', 'resolved'
+    _currentTypeFilter: 'all', // 'all', 'Error', 'Sugerencia', 'Duda'
+
+    loadFeedbackInbox: async function () {
+        const inboxList = document.getElementById('feedback-inbox-list');
+        const syncLabel = document.getElementById('admin-last-sync');
+        if (!inboxList) return;
+
+        inboxList.innerHTML = `
+            <div class="col-span-1 md:col-span-2 flex flex-col items-center justify-center py-20 opacity-50">
+                <div class="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4"></div>
+                <p class="text-gray-500 font-medium">Sincronizando reportes de Back4App...</p>
+            </div>
+        `;
+
+        try {
+            const query = new Parse.Query("Feedback");
+            query.descending("createdAt");
+            query.limit(200); // Admin needs to see more history now
+            const results = await query.find();
+
+            this._cachedFeedbacks = results;
+            if (syncLabel) {
+                const now = new Date();
+                syncLabel.textContent = "Última sincr.: " + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+
+            this.bindAdminInboxEvents();
+            this.renderFeedbackInbox();
+
+        } catch (err) {
+            console.error("Error fetching admin inbox", err);
+            inboxList.innerHTML = '<div class="col-span-1 md:col-span-2 text-center text-red-500 py-10 font-bold bg-white rounded shadow-sm border border-red-200">❌ Error al cargar. Revisa tu conexión.</div>';
+        }
+    },
+
+    bindAdminInboxEvents: function () {
+        // Prevent double binding
+        if (this._adminEventsBound) return;
+
+        // Tabs
+        const btnTabs = document.querySelectorAll('.admin-tab-btn');
+        btnTabs.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // Update active styling
+                btnTabs.forEach(b => {
+                    b.classList.remove('active', 'border-blue-600', 'text-blue-600', 'font-semibold');
+                    b.classList.add('border-transparent', 'text-gray-500', 'font-medium');
+                });
+
+                const target = e.currentTarget;
+                target.classList.remove('border-transparent', 'text-gray-500', 'font-medium');
+                target.classList.add('active', 'border-blue-600', 'text-blue-600', 'font-semibold');
+
+                this._currentFilter = target.getAttribute('data-filter');
+                this.renderFeedbackInbox();
+            });
+        });
+
+        // Type Dropdown Filter
+        const typeFilter = document.getElementById('admin-type-filter');
+        if (typeFilter) {
+            typeFilter.addEventListener('change', (e) => {
+                this._currentTypeFilter = e.target.value;
+                this.renderFeedbackInbox();
+            });
+        }
+
+        this._adminEventsBound = true;
+    },
+
+    renderFeedbackInbox: function () {
+        const inboxList = document.getElementById('feedback-inbox-list');
+        if (!inboxList) return;
+
+        let filtered = this._cachedFeedbacks;
+
+        // 1. Calculate and Update Global Stats (Ignoring current tab filter)
+        let total = filtered.length;
+        let pending = 0;
+        let resolved = 0;
+        filtered.forEach(fb => {
+            if (fb.get('status') === 'resolved') resolved++;
+            else pending++;
+        });
+
+        const elTotal = document.getElementById('admin-stat-total');
+        const elPending = document.getElementById('admin-stat-pending');
+        const elResolved = document.getElementById('admin-stat-resolved');
+        if (elTotal) elTotal.textContent = total;
+        if (elPending) elPending.textContent = pending;
+        if (elResolved) elResolved.textContent = resolved;
+
+        // 2. Apply Custom Filters
+        if (this._currentFilter === 'pending') {
+            filtered = filtered.filter(fb => fb.get('status') !== 'resolved');
+        } else if (this._currentFilter === 'resolved') {
+            filtered = filtered.filter(fb => fb.get('status') === 'resolved');
+        }
+
+        if (this._currentTypeFilter !== 'all') {
+            filtered = filtered.filter(fb => fb.get('type') === this._currentTypeFilter);
+        }
+
+        // 3. Render Cards
+        if (filtered.length === 0) {
+            inboxList.innerHTML = `
+                <div class="col-span-1 md:col-span-2 text-center text-gray-500 py-16 bg-white rounded-lg shadow-sm border border-gray-100 flex flex-col items-center">
+                    <span class="text-4xl mb-3 opacity-50">🍃</span>
+                    <p class="font-medium text-lg">No hay reportes aquí.</p>
+                    <p class="text-sm">Todo está al día para esta categoría.</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        filtered.forEach(fb => {
+            const id = fb.id;
+            const type = fb.get('type');
+            const user = fb.get('user');
+            const msg = fb.get('message');
+            const status = fb.get('status') || 'pending';
+
+            const dateOffset = new Date(fb.createdAt);
+            const dateStr = dateOffset.toLocaleDateString() + ' ' + dateOffset.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            let icon = '💬'; let typeColor = 'text-indigo-600 bg-indigo-50';
+            if (type === 'Error') { icon = '🐞'; typeColor = 'text-red-600 bg-red-50'; }
+            if (type === 'Sugerencia') { icon = '💡'; typeColor = 'text-yellow-600 bg-yellow-50'; }
+
+            const isResolved = status === 'resolved';
+
+            html += `
+                <div class="bg-white p-5 rounded-lg shadow-sm border ${isResolved ? 'border-green-200 bg-green-50/30 opacity-75' : 'border-gray-200'} flex flex-col gap-3 relative overflow-hidden transition-all hover:shadow-md h-full">
+                    ${isResolved ? '<div class="absolute top-0 right-0 w-16 h-16 bg-green-100 rounded-bl-full -mr-8 -mt-8 z-0"></div>' : ''}
+                    
+                    <div class="flex justify-between items-start z-10">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold text-sm shadow-inner">
+                                ${user.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-sm text-gray-800 leading-tight">${user}</h4>
+                                <span class="text-[10px] text-gray-400 font-medium">${dateStr}</span>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded ${typeColor}">${icon} ${type}</span>
+                    </div>
+
+                    <p class="text-gray-700 text-sm whitespace-pre-wrap flex-1 z-10 leading-relaxed">${msg}</p>
+
+                    <div class="pt-3 mt-auto border-t border-gray-100 flex justify-end z-10">
+                        ${isResolved
+                    ? `<button onclick="window.AuthManager.toggleFeedbackStatus('${id}', 'pending')" class="text-xs font-bold text-gray-500 hover:text-gray-800 transition-colors px-3 py-1 rounded hover:bg-gray-100">↩️ Reabrir Reporte</button>`
+                    : `<button onclick="window.AuthManager.toggleFeedbackStatus('${id}', 'resolved')" class="text-xs font-bold text-green-600 border border-green-200 bg-green-50 hover:bg-green-100 transition-colors px-3 py-1.5 rounded shadow-sm flex items-center gap-1">✔️ Marcar como Resuelto</button>`
+                }
+                    </div>
+                </div>
+            `;
+        });
+        inboxList.innerHTML = html;
+    },
+
+    toggleFeedbackStatus: async function (id, newStatus) {
+        try {
+            // Update Locally First for Instant Feedback
+            const localObj = this._cachedFeedbacks.find(fb => fb.id === id);
+            if (localObj) {
+                // We fake the 'get' for immediate render
+                localObj.set('status', newStatus);
+                this.renderFeedbackInbox();
+            }
+
+            // Sync with Server
+            const query = new Parse.Query("Feedback");
+            const fb = await query.get(id);
+            fb.set("status", newStatus);
+            await fb.save();
+
+        } catch (error) {
+            console.error("Failed to update status", error);
+            Toast.show("❌ Error al guardar estado en la nube", "error");
         }
     },
 

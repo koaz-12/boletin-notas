@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.ejs" viewBox="0 0 192 192" width="192" height="192">
+    <rect width="192" height="192" rx="40" fill="#2563eb" />
+    <!-- Folio lines -->
+    <rect x="50" y="60" width="90" height="12" rx="4" fill="#ffffff" />
+    <rect x="50" y="90" width="65" height="12" rx="4" fill="#ffffff" />
+    <rect x="50" y="120" width="75" height="12" rx="4" fill="#ffffff" />
+    <!-- Corner fold -->
+    <path d="M 130 40 L 152 62 L 152 40 Z" fill="#60a5fa" />
+</svg>

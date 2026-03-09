@@ -2,7 +2,7 @@
  * ImportManager.js
  * Handles Excel Import, Modal Rendering, and Batch Processing
  */
-import { store } from './State.js';
+import { store, sectionManager } from './State.js';
 import { Toast } from './Toast.js';
 import { ExcelImport } from './ExcelImport.js';
 import { AppUI } from './AppUI.js';
@@ -44,13 +44,30 @@ export const ImportManager = {
                 ExcelImport.getStudents(file, sheets[0]).then(({ students, meta }) => {
                     // Process Metadata (New Template)
                     if (meta) {
+                        // --- ANTI-CROSSOVER VALIDATION (Tanda/Grado) ---
+                        const currentSec = sectionManager.getCurrent();
+                        if (currentSec) {
+                            const excelTexto = ((meta.seccion || "") + " " + (meta.grado || "") + " " + (meta.tanda || "")).toLowerCase();
+                            const currentTanda = (currentSec.shift || "").toLowerCase().includes("matutin") ? "matutina" : "vespertina";
+
+                            let excelTanda = "";
+                            if (excelTexto.includes("matutin")) excelTanda = "matutina";
+                            else if (excelTexto.includes("vespertin")) excelTanda = "vespertina";
+
+                            if (excelTanda && excelTanda !== currentTanda) {
+                                Toast.error(`¡ALTO! El Excel es de la tanda ${excelTanda.toUpperCase()}, pero tu pestaña actual es ${currentTanda.toUpperCase()}.`, 8000);
+                                target.value = ''; // Reset input
+                                return; // BLOCK IMPORT
+                            }
+                        }
+
                         const sd = store.state.schoolData;
                         if (meta.centro) sd.centro = meta.centro;
                         if (meta.docente) sd.docente = meta.docente;
                         if (meta.seccion) sd.section = meta.seccion;
                         if (meta.anio) sd.codigo = meta.anio; // Hack: Put Year in Code field or similar? Or just ignore.
 
-                        AppUI.initSchoolData();
+                        store.notify();
                         Toast.info("Datos del Centro actualizados desde Excel 🏫");
                     }
                     ImportManager.renderImportModal(students, currentBatchData);
@@ -77,7 +94,26 @@ export const ImportManager = {
                 currentBatchData = results;
                 // Use first file for master list
                 if (results.length > 0) {
-                    ImportManager.renderImportModal(results[0].students, currentBatchData);
+                    const firstRes = results[0]; // Access the first resolved object
+                    if (firstRes.meta) {
+                        // --- ANTI-CROSSOVER VALIDATION (Tanda/Grado) ---
+                        const currentSec = sectionManager.getCurrent();
+                        if (currentSec) {
+                            const excelTexto = ((firstRes.meta.seccion || "") + " " + (firstRes.meta.grado || "") + " " + (firstRes.meta.tanda || "")).toLowerCase();
+                            const currentTanda = (currentSec.shift || "").toLowerCase().includes("matutin") ? "matutina" : "vespertina";
+
+                            let excelTanda = "";
+                            if (excelTexto.includes("matutin")) excelTanda = "matutina";
+                            else if (excelTexto.includes("vespertin")) excelTanda = "vespertina";
+
+                            if (excelTanda && excelTanda !== currentTanda) {
+                                Toast.error(`¡ALTO! Uno de los Excels es de la tanda ${excelTanda.toUpperCase()}, pero tu pestaña actual es ${currentTanda.toUpperCase()}.`, 8000);
+                                target.value = ''; // Reset input
+                                return; // BLOCK IMPORT
+                            }
+                        }
+                    }
+                    ImportManager.renderImportModal(firstRes.students, currentBatchData);
                 }
             }).catch(err => {
                 console.error(err);

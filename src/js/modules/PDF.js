@@ -154,7 +154,7 @@ export const PDFManager = {
         AppUI.confirm(
             "Imprimir Boletines",
             `Se generará un PDF con los boletines de ${students.length} estudiantes.\nEsto puede tardar unos segundos.\n\nAsegúrese de activar "Gráficos de fondo" en la ventana de impresión.`,
-            () => {
+            async () => {
                 // Save current student to restore later
                 const initialStudent = state.currentStudent;
 
@@ -169,15 +169,17 @@ export const PDFManager = {
                 document.body.appendChild(batchContainer);
 
                 try {
-                    // Loop students
-                    students.forEach(studentName => {
-                        store.loadStudent(studentName); // Updates DOM (sync?)
+                    // Async loop so DOM has time to update between students
+                    for (const studentName of students) {
+                        store.loadStudent(studentName);
+
+                        // Brief yield to let the DOM re-render before cloning
+                        await new Promise(r => setTimeout(r, 150));
 
                         // CLONE the pages
                         const p1 = document.getElementById('page-1');
                         const p2 = document.getElementById('page-2');
 
-                        // Clone Deep
                         const c1 = p1.cloneNode(true);
                         const c2 = p2.cloneNode(true);
 
@@ -193,21 +195,17 @@ export const PDFManager = {
                         copyCanvas(p1, c1);
                         copyCanvas(p2, c2);
 
-                        // Add Page Breaks
-                        c1.style.breakAfter = 'always'; // Force break after Page 1
+                        c1.style.breakAfter = 'always';
                         c1.style.pageBreakAfter = 'always';
-
-                        c2.style.breakAfter = 'always'; // Force break after Page 2 (Student End)
+                        c2.style.breakAfter = 'always';
                         c2.style.pageBreakAfter = 'always';
 
-                        // Force Show Clones (if hidden)
                         c1.classList.remove('hidden');
                         c2.classList.remove('hidden');
 
-                        // Append
                         batchContainer.appendChild(c1);
                         batchContainer.appendChild(c2);
-                    });
+                    }
 
                     // Trigger Print
                     window.print();
@@ -244,19 +242,27 @@ export const PDFManager = {
             "Exportación Masiva (ZIP)",
             `Se generarán ${students.length} archivos PDF comprimidos en un ZIP.\n\nEste proceso puede tardar unos minutos.`,
             async () => {
-                // UI Elements
+                // Elements
                 const modal = document.getElementById('progressModal');
                 const pBar = document.getElementById('progressBar');
                 const pText = document.getElementById('progressPercent');
                 const pStatus = document.getElementById('progressStatus');
                 const btnCancel = document.getElementById('btnCancelZip');
+                const pTitle = document.getElementById('progressTitle');
+                const centerIcon = document.getElementById('progressCenterIcon');
 
                 // Reset & Show Modal
                 this.isZipCancelled = false;
-                modal.classList.remove('hidden');
-                pBar.style.width = '0%';
-                pText.innerText = '0%';
-                pStatus.innerText = 'Iniciando...';
+                if (modal) modal.classList.remove('hidden');
+                if (pTitle) pTitle.innerText = 'Generando Paquete ZIP';
+                if (centerIcon) centerIcon.innerText = '📦';
+                if (btnCancel) {
+                    btnCancel.style.display = ''; // Ensure visible
+                    btnCancel.innerText = 'Cancelar Operación';
+                }
+                if (pBar) pBar.style.width = '0%';
+                if (pText) pText.innerText = '0%';
+                if (pStatus) pStatus.innerText = 'Iniciando...';
 
                 // Cancel Handler
                 const cancelHandler = () => {
@@ -310,8 +316,8 @@ export const PDFManager = {
                         const studentName = students[i];
                         store.loadStudent(studentName);
 
-                        // Wait for render
-                        await new Promise(resolve => setTimeout(resolve, 300));
+                        // Wait for DOM to fully re-render (600ms is safer on slow PCs)
+                        await new Promise(resolve => setTimeout(resolve, 600));
 
                         // Determine Filename
                         const info = store.getState().studentInfo || {};
@@ -331,19 +337,25 @@ export const PDFManager = {
                         finalName = finalName.replace(/[\/\\?%*:|"<>]/g, '-').trim() || "SinNombre";
                         const filename = `${finalName}.pdf`;
 
-                        // Config PDF (Landscape)
+                        // Config PDF (Landscape) — PNG @ scale 2.5 for crisp text
                         const opts = {
                             margin: 0,
                             filename: filename,
-                            image: { type: 'jpeg', quality: 0.95 },
-                            html2canvas: { scale: 1.5, useCORS: true, scrollY: 0 },
+                            image: { type: 'png' },
+                            html2canvas: { scale: 2.5, useCORS: true, scrollY: 0, logging: false },
                             jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
                             pagebreak: { mode: 'css', after: '.a4-page' }
                         };
 
-                        // Generate Blob
-                        const blob = await html2pdf().set(opts).from(container).output('blob');
-                        zip.file(filename, blob);
+                        // Generate Blob — wrap per-student to avoid aborting whole batch
+                        try {
+                            const blob = await html2pdf().set(opts).from(container).output('blob');
+                            zip.file(filename, blob);
+                        } catch (studentErr) {
+                            console.error(`Error generando PDF para ${filename}:`, studentErr);
+                            pStatus.innerText = `⚠️ Error con ${filename}, continuando...`;
+                            await new Promise(r => setTimeout(r, 400));
+                        }
 
                         // Update Progress
                         const percent = Math.round(((i + 1) / students.length) * 100);
@@ -397,5 +409,118 @@ export const PDFManager = {
                     if (initialStudent) store.loadStudent(initialStudent);
                 }
             }, false, "Comenzar Exportación");
+    },
+
+    /**
+     * Fase 4: Descarga 1-click del estudiante actual como PDF individual.
+     * No abre el diálogo de impresión — descarga directamente.
+     */
+    downloadCurrent: async function () {
+        const state = store.getState();
+        const studentName = state.currentStudent;
+
+        if (!studentName) {
+            Toast.warning("No hay ningún estudiante seleccionado.");
+            return;
+        }
+
+        Toast.info("Generando PDF... un momento.");
+
+        // Determinar nombre del archivo
+        const settings = state.settings || {};
+        const format = settings.pdfNameFormat || 'default';
+        const info = state.studentInfo || {};
+        let finalName = studentName;
+        if (format === 'lastname' && info.apellidos && info.nombres) {
+            finalName = `${info.apellidos} ${info.nombres}`;
+        } else if (format === 'order' && info.order) {
+            finalName = `${info.order} - ${(info.nombres || '')} ${(info.apellidos || '')}`.trim();
+        }
+        finalName = finalName.replace(/\s*\(.*?\)/g, '').replace(/[\/\\?%*:|"<>]/g, '-').trim() || "Boletin";
+
+        // Mostrar Loading Modal (Reusar progressModal de ZIP masivo)
+        const modal = document.getElementById('progressModal');
+        const pBar = document.getElementById('progressBar');
+        const pText = document.getElementById('progressPercent');
+        const pStatus = document.getElementById('progressStatus');
+        const btnCancel = document.getElementById('btnCancelZip'); // Hide cancel for single direct save
+        const pTitle = document.getElementById('progressTitle');
+        const centerIcon = document.getElementById('progressCenterIcon');
+
+        if (modal) {
+            modal.classList.remove('hidden');
+            if (pTitle) pTitle.innerText = 'Exportando Boletín Actual';
+            if (centerIcon) centerIcon.innerText = '📄';
+            if (pBar) pBar.style.width = '100%';
+            if (pText) pText.innerText = '100%';
+            if (pStatus) pStatus.innerText = `Renderizando: ${finalName}.pdf`;
+            if (btnCancel) btnCancel.style.display = 'none';
+        }
+
+        // Give the browser 100ms to visually render the modal before locking the main thread
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const container = document.getElementById('report-container');
+
+        // Hide visual labels (<h3>) that cause text overlap and height overflow (blank pages)
+        const labels = container.querySelectorAll('h3');
+        labels.forEach(l => l.style.display = 'none');
+
+        // Strip UI classes momentáneamente
+        const pages = container.querySelectorAll('.a4-page');
+        pages.forEach((p, index) => {
+            p.classList.remove('shadow-lg', 'mb-8', 'border', 'border-gray-400');
+            p.style.margin = '0';
+            p.style.boxShadow = 'none';
+            p.style.height = '209mm'; // Safe margin for A4 landscape
+            p.style.overflow = 'hidden';
+
+            // Fix blank pages: only add page-break to items that are not the last one
+            if (index < pages.length - 1) {
+                p.classList.add('pdf-page-break'); // Custom hook for CSS break
+            }
+        });
+        container.style.width = '297mm';
+        container.style.padding = '0';
+        container.style.margin = '0';
+
+
+
+        try {
+            await html2pdf().set({
+                margin: 0,
+                filename: `${finalName}.pdf`,
+                image: { type: 'png' },
+                html2canvas: { scale: 2.2, useCORS: true, scrollY: 0, logging: false },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+                // Use a precise CSS selector to avoid trailing blank page
+                pagebreak: { mode: ['css'], after: '.pdf-page-break' }
+            }).from(container).save();
+
+            Toast.success(`PDF descargado: ${finalName}.pdf`);
+        } catch (e) {
+            console.error("Error generando PDF individual:", e);
+            Toast.error("Error al generar el PDF: " + e.message);
+        } finally {
+            // Restaurar estilos y ocultar loading
+            if (labels) labels.forEach(l => l.style.display = '');
+
+            pages.forEach(p => {
+                p.classList.add('shadow-lg', 'mb-8', 'border', 'border-gray-400');
+                p.classList.remove('pdf-page-break');
+                p.style.margin = '';
+                p.style.boxShadow = '';
+                p.style.height = '';
+                p.style.overflow = '';
+            });
+            container.style.width = '';
+            container.style.padding = '';
+            container.style.margin = '';
+
+            if (modal) {
+                modal.classList.add('hidden');
+                if (btnCancel) btnCancel.style.display = ''; // Restore button visibility
+            }
+        }
     }
 };

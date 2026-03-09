@@ -5,6 +5,7 @@
 import { store } from './State.js';
 import { Toast } from './Toast.js';
 import { AppUI } from './AppUI.js';
+import { ImportManager } from './ImportManager.js';
 
 export const StudentManager = {
     // Add New Student
@@ -19,8 +20,26 @@ export const StudentManager = {
                     return;
                 }
 
-                store.loadStudent(name); // State will auto-create
+                store.loadStudent(name, false); // State will auto-create, delay UI update
+
+                // Auto-fill Nombres/Apellidos locally using Excel import logic
+                const newState = store.getState();
+                const parsed = ImportManager.parseStudentName(name);
+
+                if (!newState.studentInfo) newState.studentInfo = {};
+                newState.studentInfo.nombres = parsed.nombres || name;
+                if (parsed.apellidos) newState.studentInfo.apellidos = parsed.apellidos;
+
+                // Ensure ID is blank initially instead of carrying over unexpected keys
+                if (!newState.studentInfo.id) newState.studentInfo.id = "";
+
+                store.saveCurrentStudent();
+                store.notify(); // Now rebuild the UI dropdown with correct names!
+
                 Toast.success(`Estudiante "${name}" creado.`);
+
+                // Immediately switch to the 'Datos Generales' tab
+                document.getElementById('btnTabData')?.click();
             },
             "Ej: Juan Pérez"
         );
@@ -54,10 +73,11 @@ export const StudentManager = {
             "⚠️ ELIMINAR TODOS ⚠️",
             "Estás a punto de ELIMINAR TODOS los estudiantes.\nEsta acción es irreversible.\n¿Estás seguro?",
             () => {
-                // Reset Store
+                // Reset Store to truly empty
                 store.setRoster([], {});
-                // Create Default
-                store.loadStudent("Estudiante 1", false);
+                store.getState().currentStudent = null;
+                store.notify();
+                window.dispatchEvent(new Event('minerd:section-switched')); // Refreshes Empty State immediately
                 Toast.info("Todos los estudiantes han sido eliminados.");
             },
             true
@@ -102,10 +122,23 @@ export const StudentManager = {
                 state.studentList.forEach(name => {
                     const opt = document.createElement('option');
                     opt.value = name;
-                    opt.innerText = name;
                     selector.appendChild(opt);
                 });
             }
+
+            // Always update text to reflect fresh 'Nombres Apellidos' from Data
+            Array.from(selector.options).forEach((opt, index) => {
+                const nameKey = state.studentList[index];
+                if (nameKey) {
+                    let display = nameKey;
+                    const studentData = state.roster[nameKey];
+                    if (studentData && studentData.studentInfo) {
+                        const full = `${studentData.studentInfo.nombres || ''} ${studentData.studentInfo.apellidos || ''}`.trim();
+                        if (full) display = full;
+                    }
+                    if (opt.innerText !== display) opt.innerText = display;
+                }
+            });
 
             selector.value = state.currentStudent;
 

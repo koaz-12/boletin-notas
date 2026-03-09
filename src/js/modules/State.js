@@ -157,7 +157,7 @@ export class AppState {
             finalCondition: "",
             roster: {},
             studentList: [],
-            currentStudent: "Estudiante 1",
+            currentStudent: null,
             schoolData: {
                 centro: schoolDefaults.centro || "",
                 codigo: schoolDefaults.codigo || "",
@@ -309,12 +309,17 @@ export class AppState {
             const meta = sectionManager.getCurrent();
             if (meta) {
                 this.state.grade = meta.grade;
+                this.state.schoolData.tanda = meta.shift;
+                this.state.schoolData.section = meta.name;
                 this.loadSubjectsForGrade(meta.grade);
             }
             this.saveCurrentStudent();
         }
 
         this.notify();
+
+        // Notify UI to handle tab switching based on data
+        window.dispatchEvent(new Event('minerd:section-switched'));
     }
 
     // --- CRUD WRAPPERS ---
@@ -333,6 +338,14 @@ export class AppState {
             // Reload current (which changed inside deleteSection if we deleted the active one)
             this.switchSection(sectionManager.currentSectionId);
         }
+    }
+
+    renameSection(id, newName) {
+        if (sectionManager.renameSection(id, newName)) {
+            this.notify();
+            return true;
+        }
+        return false;
     }
 
     getState() { return this.state; }
@@ -402,6 +415,7 @@ export class AppState {
 
     updateSettings(newSettings) {
         this.state.settings = { ...this.state.settings, ...newSettings };
+        this.debouncedSave(); // Added to fix settings not saving locally/cloud
         this.notify();
     }
 
@@ -484,14 +498,26 @@ export class AppState {
     deleteStudent(name) {
         if (this.state.roster[name]) delete this.state.roster[name];
         this.state.studentList = this.state.studentList.filter(s => s !== name);
-        let next = this.state.studentList.length > 0 ? this.state.studentList[0] : "Estudiante 1";
-        this.loadStudent(next, false);
+        let next = this.state.studentList.length > 0 ? this.state.studentList[0] : null;
+
+        if (next) {
+            this.loadStudent(next, false);
+        } else {
+            // No students left
+            this.state.currentStudent = null;
+            this.notify();
+            window.dispatchEvent(new Event('minerd:section-switched')); // Refreshes Empty State immediately
+        }
     }
 
     setRoster(list, rosterData) {
         this.state.studentList = list;
         this.state.roster = rosterData;
-        if (list.length > 0) this.loadStudent(list[0], false);
+        if (list.length > 0) {
+            this.loadStudent(list[0], false);
+        } else {
+            this.state.currentStudent = null;
+        }
     }
 
     subscribe(listener) {
@@ -678,12 +704,13 @@ export class AppState {
 
             if (targetId) {
                 sectionManager.setCurrent(targetId);
-                this.resetState();
-                if (this.loadFromLocalStorage()) {
-                    // Loaded successfully
-                }
-                this.notify(); // Re-render everything
             }
+
+            console.log("☁️ Data imported successfully. Hot-reloading UI...");
+            // Hot-reload: update in memory, no page reload (prevents infinite loop)
+            this.resetState();
+            this.loadFromLocalStorage();
+            this.notify();
 
             return true;
         } catch (e) {

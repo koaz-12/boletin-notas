@@ -6,6 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Informe de Aprendizaje - Nivel Primario</title>
 
+    <!-- PWA Settings -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="icon" type="image/svg+xml" href="assets/icon-192.svg">
+    <link rel="apple-touch-icon" href="assets/icon-192.svg">
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
@@ -27,6 +33,37 @@
 
     <!-- Custom Styles -->
     <link rel="stylesheet" href="src/css/styles.css?v=5">
+
+    <!-- Anti-FOUC Script for Admin Mode -->
+    <script>
+        (function () {
+            try {
+                // Parse stores session token and current user locally
+                const storageKeys = Object.keys(localStorage);
+                const currentUserKey = storageKeys.find(key => key.includes('Parse/') && key.includes('/currentUser'));
+                if (currentUserKey) {
+                    const userData = JSON.parse(localStorage.getItem(currentUserKey));
+                    if (userData && userData.username === 'soporte_admin') {
+                        // Immediately inject blocking CSS before body renders
+                        const style = document.createElement('style');
+                        style.textContent = `
+                            #main-header-container, #main-control-panel, #sections-bar, .a4-wrapper, 
+                            .fixed.bottom-6.right-6.z-\\[9000\\] {
+                                display: none !important;
+                            }
+                            body { background-color: #f3f4f6; } /* gray-100 */
+                            #feedback-inbox-modal {
+                                display: flex !important;
+                            }
+                        `;
+                        document.head.appendChild(style);
+                        // Also set a global flag for JS initialization later
+                        window.__ADMIN_MODE_ACTIVE__ = true;
+                    }
+                }
+            } catch (e) { console.error('Error in Anti-FOUC script:', e); }
+        })();
+    </script>
 </head>
 
 <body class="bg-gray-200">
@@ -51,34 +88,41 @@
                     <p class="text-xs text-gray-500">Conectado como</p>
                     <p class="text-sm font-bold text-gray-800 truncate" id="user-email-display">user</p>
                 </div>
-                <!-- Settings (Placeholder) -->
-                <button id="menu-settings"
-                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                    <span>⚙️</span> Configuración
-                </button>
-                <!-- History -->
+                <!-- Historial -->
                 <button id="menu-history"
-                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors">
                     <span>🕰️</span> Historial
                 </button>
-                <div class="border-t border-gray-100 my-1"></div>
-                <!-- Logout -->
-                <button id="menu-logout"
-                    class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
-                    <span>🚪</span> Cerrar Sesión
-                </button>
-                <div class="border-t border-gray-100 my-1"></div>
                 <!-- Trash Bin -->
                 <button id="menu-trash"
-                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors">
                     <span>🗑️</span> Papelera
+                </button>
+                <!-- Feedback/Bugs Submit/View -->
+                <button id="menu-feedback"
+                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors">
+                    <span>💡</span> Comentarios y Sugerencias
+                </button>
+                <div class="border-t border-gray-100 my-1"></div>
+                <!-- Settings -->
+                <button id="menu-settings"
+                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors">
+                    <span>⚙️</span> Configuración
+                </button>
+
+                <div class="border-t border-gray-100 my-1"></div>
+
+                <!-- Logout -->
+                <button id="menu-logout"
+                    class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors">
+                    <span>🚪</span> Cerrar sesión
                 </button>
             </div>
         </div>
     </div>
 
     <!-- TITULO PRINCIPAL (Clean Text + Badge) -->
-    <div class="max-w-7xl mx-auto text-center mt-8 mb-2 no-print">
+    <div id="main-header-container" class="max-w-7xl mx-auto text-center mt-8 mb-2 no-print">
         <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Generador de Informe de Aprendizaje</h1>
         <!-- Badge Row -->
         <div class="mt-2 flex justify-center">
@@ -135,18 +179,13 @@
     <div id="main-control-panel"
         class="no-print max-w-7xl mx-auto p-6 bg-white shadow-lg rounded-b-lg rounded-tr-lg font-sans border border-gray-200 border-t-0 relative z-10">
 
-        <!-- Header -->
-        <h1 class="text-2xl font-bold text-blue-800 mb-6 border-b pb-2">Generador de Informe de Aprendizaje <span
-                id="dispHeaderGrade">(1er Grado)</span>
-        </h1>
-
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
             <!-- COLUMNA IZQUIERDA (Pestañas - 2/3 ancho) -->
             <div class="lg:col-span-8">
 
                 <!-- Barra de Pestañas -->
-                <div class="flex border-b border-gray-200 mb-6 gap-4">
+                <div class="flex overflow-x-auto whitespace-nowrap border-b border-gray-200 mb-6 gap-2 sm:gap-4 pb-2">
                     <button id="btnTabData" class="tab-btn tab-active px-6 py-2 text-lg focus:outline-none">
                         📝 Datos Generales
                     </button>
@@ -168,7 +207,7 @@
                             </h2>
                             <input type="text" id="inputCentro" placeholder="Nombre del Centro Educativo"
                                 class="border p-2 rounded w-full text-sm">
-                            <div class="grid grid-cols-2 gap-2">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 <input type="text" id="inputCodigo" placeholder="Código de Centro"
                                     class="border p-2 rounded w-full text-sm">
                                 <input type="text" id="inputTanda" placeholder="Tanda"
@@ -176,13 +215,13 @@
                             </div>
                             <input type="text" id="inputTelefono" placeholder="Teléfono del Centro"
                                 class="border p-2 rounded w-full text-sm">
-                            <div class="grid grid-cols-2 gap-2">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 <input type="text" id="inputRegional" placeholder="Regional"
                                     class="border p-2 rounded w-full text-sm">
                                 <input type="text" id="inputDistrito" placeholder="Distrito"
                                     class="border p-2 rounded w-full text-sm">
                             </div>
-                            <div class="grid grid-cols-2 gap-2">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 <input type="text" id="inputProvincia" placeholder="Provincia"
                                     class="border p-2 rounded w-full text-sm">
                                 <input type="text" id="inputMunicipio" placeholder="Municipio"
@@ -221,7 +260,7 @@
                                 class="border p-1 rounded w-full text-xs h-6">
 
                             <!-- ID / Docente (Merged) -->
-                            <div class="grid grid-cols-2 gap-2">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 <input type="text" id="inputID" placeholder="ID (RNE/SIGERD)"
                                     class="border p-1 rounded w-full text-xs h-6">
                                 <input type="text" id="inputDocente" placeholder="Docente"
@@ -399,383 +438,354 @@
                 <div class="space-y-2 sticky top-6">
                     <h2 class="font-semibold text-gray-700 border-b pb-1">3. Configuración</h2>
 
-                    <!-- Toggles Principales -->
-                    <!-- Toggles Principales (Movidos a Botones Flotantes) -->
-
-                    <div class="mb-4">
-                        <label class="block text-xs font-bold text-gray-600 mb-1">Fondo PDF (Plantilla)</label>
-                        <input type="file" id="pdfUpload" accept=".pdf"
-                            class="w-full text-xs text-gray-500 file:mr-2 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border rounded-lg p-1">
-                    </div>
-
-                    <!-- PDF Filename Format -->
-                    <div class="mb-4">
-                        <label class="block text-xs font-bold text-gray-600 mb-1">Nombre Archivos PDF</label>
-                        <select id="pdfNameFormat"
-                            class="w-full border p-1 rounded text-xs text-gray-700 bg-white focus:border-blue-500 outline-none h-8">
-                            <option value="default">Nombre (Por Defecto)</option>
-                            <option value="lastname">Apellidos, Nombres</option>
-                            <option value="order">No. Orden - Nombre Completo</option>
-                        </select>
-                    </div>
-
-                    <!-- Subir Excel (Simplificado) - MOVED HERE -->
-                    <div class="mb-4">
-                        <div
-                            class="border-2 border-dashed border-blue-200 p-2 rounded-lg text-center hover:bg-blue-50 transition cursor-pointer relative flex items-center justify-center gap-2 group">
-                            <input type="file" id="excelFile" accept=".xlsx, .xls" multiple
-                                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
-                            <span class="text-xl">📂</span>
-                            <span class="text-blue-600 font-bold text-xs group-hover:text-blue-800">Importar
-                                Excel</span>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 gap-4">
-                        <!-- Student Navigator (Roster) -->
-                        <div id="studentNavigator" class="bg-blue-50 p-3 rounded border border-blue-200">
-                            <h3 class="font-bold text-gray-700 mb-2 flex items-center justify-between text-xs">
-                                <span>🎓 Lista de Clase</span>
-                                <span id="studentCountBadge"
-                                    class="bg-blue-200 text-blue-800 text-[10px] px-2 py-0.5 rounded-full">0</span>
-                            </h3>
-                            <select id="studentSelector"
-                                class="w-full border p-1 rounded text-xs font-semibold text-gray-800 bg-white focus:border-blue-500 outline-none mb-2">
-                                <!-- Populated by JS -->
+                    <!-- 1. BOLETA SELECTOR -->
+                    <div class="mb-3">
+                        <label class="block text-xs font-bold text-gray-600 mb-1">📋 Boletín de Notas</label>
+                        <div class="flex gap-1 items-center">
+                            <select id="gradeSelector"
+                                class="w-full border p-1.5 rounded text-sm bg-white focus:border-blue-500 outline-none h-9 font-semibold text-gray-700">
+                                <option value="1">1er Grado</option>
+                                <option value="2">2do Grado</option>
+                                <option value="3">3er Grado</option>
+                                <option value="4">4to Grado</option>
+                                <option value="5">5to Grado</option>
+                                <option value="6">6to Grado</option>
                             </select>
-
-                            <div class="flex gap-2 mb-2">
-                                <button id="btnPrevStudent"
-                                    class="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-xs font-bold"
-                                    title="Anterior">◀</button>
-                                <button id="btnAddStudent"
-                                    class="px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded text-xs font-bold flex-1"
-                                    title="Nuevo Estudiante">+ Nuevo</button>
-                                <button id="btnDeleteStudent"
-                                    class="px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded text-xs font-bold"
-                                    title="Eliminar Estudiante">🗑️</button>
-                                <button id="btnNextStudent"
-                                    class="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-xs font-bold"
-                                    title="Siguiente">▶</button>
-                            </div>
-                            <div class="flex mb-2">
-                                <button id="btnDeleteAllStudents"
-                                    class="w-full px-2 py-1 bg-red-50 hover:bg-red-100 text-red-600 rounded text-xs font-bold border border-red-200 transition-colors">
-                                    ⚠️ Eliminar TODOS
-                                </button>
-                            </div>
-                            <div class="flex gap-1 mb-2 items-center">
-                                <select id="gradeSelector" class="w-full border p-1 rounded text-[10px] bg-gray-50 h-7">
-                                    <option value="1">1er Grado</option>
-                                    <option value="2">2do Grado</option>
-                                    <option value="3">3er Grado</option>
-                                    <option value="4">4to Grado</option>
-                                    <option value="5">5to Grado</option>
-                                    <option value="6">6to Grado</option>
-                                </select>
-                            </div>
-
-                            <!-- Layout Actions -->
-                            <div class="flex gap-1 mb-2">
-                                <button id="btnExportLayout"
-                                    class="flex-1 bg-yellow-100 text-yellow-800 border border-yellow-200 rounded px-2 py-1 text-[10px] font-bold hover:bg-yellow-200"
-                                    title="Copiar Configuración de Posiciones">
-                                    💾 Guardar Diseño
-                                </button>
-                                <label
-                                    class="flex-1 bg-gray-100 text-gray-700 border border-gray-200 rounded px-2 py-1 text-[10px] font-bold hover:bg-gray-200 cursor-pointer text-center"
-                                    title="Cargar Configuración de Posiciones">
-                                    📂 Cargar
-                                    <input type="file" id="importLayoutFile" accept=".json" class="hidden">
-                                </label>
-                            </div>
-
-
-
-                            <div class="border-t pt-2 mb-2">
-                                <p class="text-[10px] font-bold text-gray-500 mb-1">TAMAÑO DE LETRA</p>
-                                <div class="flex items-center gap-2 bg-gray-100 p-1 rounded justify-center">
-                                    <button id="btnDecreaseFont"
-                                        class="bg-white border rounded px-2 hover:bg-gray-200 font-bold">-</button>
-                                    <span id="dispFontSize"
-                                        class="text-xs font-mono font-bold w-6 text-center">11</span>
-                                    <button id="btnIncreaseFont"
-                                        class="bg-white border rounded px-2 hover:bg-gray-200 font-bold">+</button>
-                                </div>
-                            </div>
-
-                            <div class="border-t pt-2 mb-2">
-                                <p class="text-[10px] font-bold text-gray-500 mb-1">ESTILO (Página 1)</p>
-                                <div class="flex gap-1 justify-center bg-gray-100 p-1 rounded">
-                                    <button id="btnAlignLeftP1"
-                                        class="bg-white border rounded px-2 hover:bg-gray-200 text-xs"
-                                        title="Izquierda (P1)">⬅️</button>
-                                    <button id="btnAlignCenterP1"
-                                        class="bg-white border rounded px-2 hover:bg-gray-200 text-xs"
-                                        title="Centro (P1)">⏺️</button>
-                                    <button id="btnAlignRightP1"
-                                        class="bg-white border rounded px-2 hover:bg-gray-200 text-xs"
-                                        title="Derecha (P1)">➡️</button>
-                                    <button id="btnBoldP1"
-                                        class="bg-white border rounded px-2 hover:bg-gray-200 text-xs font-bold"
-                                        title="Negrita (P1)">B</button>
-                                </div>
-                            </div>
-
-                            <div class="border-t pt-2 mb-2">
-                                <p class="text-[10px] font-bold text-gray-500 mb-1">ESTILO (P2 - Calif.)</p>
-                                <div class="flex gap-1 justify-center bg-gray-100 p-1 rounded">
-                                    <button id="btnAlignLeftP2G"
-                                        class="bg-white border rounded px-2 hover:bg-gray-200 text-xs"
-                                        title="Izquierda (P2 Notas)">⬅️</button>
-                                    <button id="btnAlignCenterP2G"
-                                        class="bg-white border rounded px-2 hover:bg-gray-200 text-xs"
-                                        title="Centro (P2 Notas)">⏺️</button>
-                                    <button id="btnAlignRightP2G"
-                                        class="bg-white border rounded px-2 hover:bg-gray-200 text-xs"
-                                        title="Derecha (P2 Notas)">➡️</button>
-                                    <button id="btnBoldP2G"
-                                        class="bg-white border rounded px-2 hover:bg-gray-200 text-xs font-bold"
-                                        title="Negrita (P2 Notas)">B</button>
-                                </div>
-                            </div>
-
-                            <div class="border-t pt-2 mb-2">
-                                <p class="text-[10px] font-bold text-gray-500 mb-1">ESTILO (P2 - Obs/Asist)</p>
-                                <div class="flex gap-1 justify-center bg-gray-100 p-1 rounded">
-                                    <button id="btnAlignLeftP2O"
-                                        class="bg-white border rounded px-2 hover:bg-gray-200 text-xs"
-                                        title="Izquierda (P2 Obs)">⬅️</button>
-                                    <button id="btnAlignCenterP2O"
-                                        class="bg-white border rounded px-2 hover:bg-gray-200 text-xs"
-                                        title="Centro (P2 Obs)">⏺️</button>
-                                    <button id="btnAlignRightP2O"
-                                        class="bg-white border rounded px-2 hover:bg-gray-200 text-xs"
-                                        title="Derecha (P2 Obs)">➡️</button>
-                                    <button id="btnBoldP2O"
-                                        class="bg-white border rounded px-2 hover:bg-gray-200 text-xs font-bold"
-                                        title="Negrita (P2 Obs)">B</button>
-                                </div>
-                            </div>
-
-                            <!-- (Removed Custom Subjects) -->
                         </div>
                     </div>
+
+                    <!-- 2. IMPORTAR EXCEL + DESCARGAR PLANTILLA -->
+                    <div class="mb-3">
+                        <label class="block text-xs font-bold text-gray-600 mb-1">📂 Importar Notas</label>
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <div
+                                class="flex-1 border-2 border-dashed border-blue-200 p-2 rounded-lg text-center hover:bg-blue-50 transition cursor-pointer relative flex items-center justify-center gap-2 group">
+                                <input type="file" id="excelFile" accept=".xlsx, .xls" multiple
+                                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                                <span class="text-xl">📂</span>
+                                <span class="text-blue-600 font-bold text-xs group-hover:text-blue-800">Importar
+                                    Excel</span>
+                            </div>
+                            <button id="btnOpenTemplateModal"
+                                class="w-12 border p-2 rounded-lg bg-gray-50 hover:bg-gray-100 flex items-center justify-center border-gray-200 shadow-sm transition-colors group"
+                                title="Descargar Plantillas">
+                                <span
+                                    class="text-lg text-gray-400 group-hover:text-blue-600 transition-colors">📥</span>
+                            </button>
+                        </div>
+
+                        <!-- NEW: Google Sheets Sync -->
+                        <div class="mt-2 bg-green-50/50 p-2 rounded border border-green-100">
+                            <label class="block text-[10px] font-bold text-green-700 mb-1 flex items-center gap-1">
+                                <span>🔗 Link de Google Sheets</span>
+                            </label>
+                            <div class="flex flex-col sm:flex-row gap-1 sm:gap-2 mt-1">
+                                <input type="text" id="googleSheetUrlInput" placeholder="https://docs.google.com/..."
+                                    class="flex-1 border p-1 rounded text-xs focus:ring-1 focus:ring-green-400 outline-none w-full" />
+                                <button id="btnSyncGoogleSheet"
+                                    class="bg-green-600 hover:bg-green-700 text-white px-2 rounded text-xs font-bold transition-colors shadow-sm whitespace-nowrap"
+                                    title="Sincronizar Datos">
+                                    📥 Traer
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. LISTA DE ESTUDIANTES (its own card) -->
+                    <div id="studentNavigator" class="bg-blue-50 p-3 rounded border border-blue-200 mb-3">
+                        <h3 class="font-bold text-gray-700 mb-2 flex items-center justify-between text-xs">
+                            <span>🎓 Lista de Clase</span>
+                            <span id="studentCountBadge"
+                                class="bg-blue-200 text-blue-800 text-[10px] px-2 py-0.5 rounded-full">0</span>
+                        </h3>
+                        <select id="studentSelector"
+                            class="w-full border p-1 rounded text-xs font-semibold text-gray-800 bg-white focus:border-blue-500 outline-none mb-2">
+                            <!-- Populated by JS -->
+                        </select>
+                        <div class="flex gap-2 mb-2">
+                            <button id="btnPrevStudent"
+                                class="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-xs font-bold"
+                                title="Anterior">◀</button>
+                            <button id="btnAddStudent"
+                                class="px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded text-xs font-bold flex-1"
+                                title="Nuevo Estudiante">+ Nuevo</button>
+                            <button id="btnDeleteStudent"
+                                class="px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded text-xs font-bold"
+                                title="Eliminar Estudiante">🗑️</button>
+                            <button id="btnNextStudent"
+                                class="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-xs font-bold"
+                                title="Siguiente">▶</button>
+                        </div>
+                        <div class="flex">
+                            <button id="btnDeleteAllStudents"
+                                class="w-full px-2 py-1 bg-red-50 hover:bg-red-100 text-red-600 rounded text-xs font-bold border border-red-200 transition-colors">
+                                ⚠️ Eliminar TODOS
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 4. DISEÑO Y ESTILO (separate card) -->
+                    <div class="bg-gray-50 border border-gray-200 rounded p-3 mb-3">
+                        <h3 class="font-bold text-gray-600 text-xs mb-2">🎨 Diseño y Estilo</h3>
+
+                        <!-- Layout Actions -->
+                        <div class="flex gap-1 mb-3">
+                            <button id="btnExportLayout"
+                                class="flex-1 bg-yellow-100 text-yellow-800 border border-yellow-200 rounded px-2 py-1 text-[10px] font-bold hover:bg-yellow-200"
+                                title="Copiar Configuración de Posiciones">
+                                💾 Guardar Diseño
+                            </button>
+                            <label
+                                class="flex-1 bg-gray-100 text-gray-700 border border-gray-200 rounded px-2 py-1 text-[10px] font-bold hover:bg-gray-200 cursor-pointer text-center"
+                                title="Cargar Configuración de Posiciones">
+                                📂 Cargar
+                                <input type="file" id="importLayoutFile" accept=".json" class="hidden">
+                            </label>
+                        </div>
+
+                        <div class="border-t pt-2 mb-2">
+                            <p class="text-[10px] font-bold text-gray-500 mb-1">TAMAÑO DE LETRA</p>
+                            <div class="flex items-center gap-2 bg-gray-100 p-1 rounded justify-center">
+                                <button id="btnDecreaseFont"
+                                    class="bg-white border rounded px-2 hover:bg-gray-200 font-bold">-</button>
+                                <span id="dispFontSize" class="text-xs font-mono font-bold w-6 text-center">11</span>
+                                <button id="btnIncreaseFont"
+                                    class="bg-white border rounded px-2 hover:bg-gray-200 font-bold">+</button>
+                            </div>
+                        </div>
+
+                        <div class="border-t pt-2 mb-2">
+                            <p class="text-[10px] font-bold text-gray-500 mb-1">ESTILO (Página 1)</p>
+                            <div class="flex gap-1 justify-center bg-gray-100 p-1 rounded">
+                                <button id="btnAlignLeftP1"
+                                    class="bg-white border rounded px-2 hover:bg-gray-200 text-xs"
+                                    title="Izquierda (P1)">⬅️</button>
+                                <button id="btnAlignCenterP1"
+                                    class="bg-white border rounded px-2 hover:bg-gray-200 text-xs"
+                                    title="Centro (P1)">⏺️</button>
+                                <button id="btnAlignRightP1"
+                                    class="bg-white border rounded px-2 hover:bg-gray-200 text-xs"
+                                    title="Derecha (P1)">➡️</button>
+                                <button id="btnBoldP1"
+                                    class="bg-white border rounded px-2 hover:bg-gray-200 text-xs font-bold"
+                                    title="Negrita (P1)">B</button>
+                            </div>
+                        </div>
+
+                        <div class="border-t pt-2 mb-2">
+                            <p class="text-[10px] font-bold text-gray-500 mb-1">ESTILO (P2 - Calif.)</p>
+                            <div class="flex gap-1 justify-center bg-gray-100 p-1 rounded">
+                                <button id="btnAlignLeftP2G"
+                                    class="bg-white border rounded px-2 hover:bg-gray-200 text-xs"
+                                    title="Izquierda (P2 Notas)">⬅️</button>
+                                <button id="btnAlignCenterP2G"
+                                    class="bg-white border rounded px-2 hover:bg-gray-200 text-xs"
+                                    title="Centro (P2 Notas)">⏺️</button>
+                                <button id="btnAlignRightP2G"
+                                    class="bg-white border rounded px-2 hover:bg-gray-200 text-xs"
+                                    title="Derecha (P2 Notas)">➡️</button>
+                                <button id="btnBoldP2G"
+                                    class="bg-white border rounded px-2 hover:bg-gray-200 text-xs font-bold"
+                                    title="Negrita (P2 Notas)">B</button>
+                            </div>
+                        </div>
+
+                        <div class="border-t pt-2">
+                            <p class="text-[10px] font-bold text-gray-500 mb-1">ESTILO (P2 - Obs/Asist)</p>
+                            <div class="flex gap-1 justify-center bg-gray-100 p-1 rounded">
+                                <button id="btnAlignLeftP2O"
+                                    class="bg-white border rounded px-2 hover:bg-gray-200 text-xs"
+                                    title="Izquierda (P2 Obs)">⬅️</button>
+                                <button id="btnAlignCenterP2O"
+                                    class="bg-white border rounded px-2 hover:bg-gray-200 text-xs"
+                                    title="Centro (P2 Obs)">⏺️</button>
+                                <button id="btnAlignRightP2O"
+                                    class="bg-white border rounded px-2 hover:bg-gray-200 text-xs"
+                                    title="Derecha (P2 Obs)">➡️</button>
+                                <button id="btnBoldP2O"
+                                    class="bg-white border rounded px-2 hover:bg-gray-200 text-xs font-bold"
+                                    title="Negrita (P2 Obs)">B</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5. OTRAS OPCIONES (PDF, Nombre) -->
+                    <div class="pt-3 border-t border-gray-200 space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Fondo PDF (Plantilla)</label>
+                            <input type="file" id="pdfUpload" accept=".pdf"
+                                class="w-full text-xs text-gray-500 file:mr-2 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border rounded-lg p-1">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Nombre Archivos PDF</label>
+                            <select id="pdfNameFormat"
+                                class="w-full border p-1 rounded text-xs text-gray-700 bg-white focus:border-blue-500 outline-none h-8">
+                                <option value="default">Nombre (Por Defecto)</option>
+                                <option value="lastname">Apellidos, Nombres</option>
+                                <option value="order">No. Orden - Nombre Completo</option>
+                            </select>
+                        </div>
+                    </div>
+
                 </div>
             </div>
-        </div>
-
-        <!-- Floating Export Buttons -->
-        <div class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 print:hidden items-end">
-
-            <!-- Floating Controls List (Hidden by default, toggled by button) -->
-            <div id="floatingControls"
-                class="flex flex-col gap-3 mb-4 hidden transform transition-all duration-300 origin-bottom">
-
-                <!-- 1. Individual Print -->
-                <button id="btnPrintIndividual"
-                    class="bg-blue-600 text-white w-10 h-10 rounded-full shadow-lg hover:bg-blue-700 hover:scale-105 flex items-center justify-center border border-blue-700 transition-transform"
-                    onclick="window.print()" title="Imprimir Individual (CTRL+P)">
-                    <span class="text-lg">🖨️</span>
-                </button>
-
-                <!-- 2. Batch Print -->
-                <button id="btnPrintBatch"
-                    class="bg-purple-600 text-white w-10 h-10 rounded-full shadow-lg hover:bg-purple-700 hover:scale-105 flex items-center justify-center transition-transform"
-                    title="Imprimir TODOS (Un solo PDF)">
-                    <span class="text-lg">📚</span>
-                </button>
-
-                <!-- 3. Batch Zip -->
-                <button id="btnZipBatch"
-                    class="bg-orange-500 text-white w-10 h-10 rounded-full shadow-lg hover:bg-orange-600 hover:scale-105 flex items-center justify-center transition-transform"
-                    title="Descargar TODOS (PDFs Individuales en ZIP)">
-                    <span class="text-lg">📦</span>
-                </button>
-
-                <!-- Edit Mode Toggle -->
-                <button id="btnFloatEdit"
-                    class="bg-white text-gray-600 w-10 h-10 rounded-full shadow-lg hover:bg-red-50 hover:text-red-600 hover:scale-105 flex items-center justify-center border border-gray-200 transition-transform"
-                    title="Modo Edición (Mover Casillas)">
-                    <span class="text-lg">✏️</span>
-                </button>
-
-                <!-- Overlay Toggle -->
-                <button id="btnFloatOverlay"
-                    class="bg-blue-600 text-white w-10 h-10 rounded-full shadow-lg hover:bg-blue-700 hover:scale-105 flex items-center justify-center border border-blue-700 transition-transform"
-                    title="Vista Previa (Plantilla)">
-                    <span class="text-lg">👁️</span>
-                </button>
-
-                <!-- Backup -->
-                <button id="btnExportProject"
-                    class="bg-gray-800 text-white w-10 h-10 rounded-full shadow-lg hover:bg-gray-900 hover:scale-105 flex items-center justify-center opacity-80 hover:opacity-100 transition-transform"
-                    title="Guardar Copia de Seguridad">
-                    <span class="text-lg">💾</span>
-                </button>
-            </div>
-
-            <!-- TOGGLE BUTTON (Always Visible) -->
-            <button id="btnToggleControls"
-                class="bg-gray-200 text-gray-700 w-8 h-8 rounded-full shadow-md hover:bg-gray-300 flex items-center justify-center transition-transform"
-                title="Mostrar/Ocultar Controles">
-                <span id="iconToggle" class="text-sm font-bold">⚙️</span>
-            </button>
-
         </div>
 
     </div>
     </div>
 
     <!-- CONTENEDOR DEL REPORTE (Para exportar todo junto) -->
-    <div id="report-container">
+    <div class="a4-wrapper">
+        <div id="report-container">
 
-        <h3 class="no-print text-center text-gray-500 font-bold mb-2">Página 1 (Portada)</h3>
-        <!-- PÁGINA 1 -->
-        <div id="page-1" class="a4-page relative shadow-lg mb-8 border border-gray-400">
-            <!-- Canvas Fondo -->
-            <canvas id="canvas-page-1" class="pdf-canvas absolute inset-0 w-full h-full z-0"></canvas>
+            <h3 class="no-print text-center text-gray-500 font-bold mb-2">Página 1 (Portada)</h3>
+            <!-- PÁGINA 1 -->
+            <div id="page-1" class="a4-page relative shadow-lg mb-8 border border-gray-400">
+                <!-- Canvas Fondo -->
+                <canvas id="canvas-page-1" class="pdf-canvas absolute inset-0 w-full h-full z-0"></canvas>
 
-            <!-- Contenido (RESTAURADO) -->
-            <div class="content-layer relative z-10 w-full h-full">
+                <!-- Contenido (RESTAURADO) -->
+                <div class="content-layer relative z-10 w-full h-full">
 
-                <!-- Información del Centro y Estudiante -->
-                <div id="dragInfo" class="text-sm">
+                    <!-- Información del Centro y Estudiante -->
+                    <div id="dragInfo" class="text-sm">
 
-                    <!-- Año Escolar 1 -->
-                    <div id="field_year1"
-                        class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
-                        style="top: 50px; left: 50px; width: 40px; height: 20px;">
-                        <span id="dispYear1">24</span>
+                        <!-- Año Escolar 1 -->
+                        <div id="field_year1"
+                            class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
+                            style="top: 50px; left: 50px; width: 40px; height: 20px;">
+                            <span id="dispYear1">24</span>
+                        </div>
+                        <div id="field_year2"
+                            class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
+                            style="top: 50px; left: 100px; width: 40px; height: 20px;">
+                            <span id="dispYear2">25</span>
+                        </div>
+
+                        <!-- Sección -->
+                        <div id="field_section"
+                            class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
+                            style="top: 80px; left: 50px; width: 100px; height: 20px;">
+                            <span id="dispSeccion"></span>
+                        </div>
+
+                        <!-- Orden -->
+                        <div id="field_orden"
+                            class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
+                            style="top: 80px; left: 300px; width: 50px; height: 20px;">
+                            <span id="dispOrden"></span>
+                        </div>
+
+                        <!-- Nombres -->
+                        <div id="field_nombres"
+                            class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
+                            style="top: 110px; left: 50px; width: 300px; height: 20px;">
+                            <span id="dispNombres"></span>
+                        </div>
+
+                        <!-- Apellidos -->
+                        <div id="field_apellidos"
+                            class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
+                            style="top: 140px; left: 50px; width: 300px; height: 20px;">
+                            <span id="dispApellidos"></span>
+                        </div>
+
+                        <!-- ID Estudiante -->
+                        <div id="field_id"
+                            class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
+                            style="top: 170px; left: 50px; width: 200px; height: 20px;">
+                            <span id="dispID"></span>
+                        </div>
+
+                        <!-- Docente -->
+                        <div id="field_docente"
+                            class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
+                            style="top: 200px; left: 50px; width: 300px; height: 20px;">
+                            <span id="dispDocente"></span>
+                        </div>
+
+                        <!-- Centro Educativo -->
+                        <div id="field_centro"
+                            class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
+                            style="top: 230px; left: 50px; width: 300px; height: 20px;">
+                            <span id="dispCentro"></span>
+                        </div>
+
+                        <!-- Código -->
+                        <div id="field_codigo"
+                            class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
+                            style="top: 260px; left: 50px; width: 100px; height: 20px;">
+                            <span id="dispCodigo"></span>
+                        </div>
+
+                        <!-- Tanda -->
+                        <div id="field_tanda"
+                            class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
+                            style="top: 260px; left: 300px; width: 100px; height: 20px;">
+                            <span id="dispTanda"></span>
+                        </div>
+
+                        <!-- Teléfono -->
+                        <div id="field_telefono"
+                            class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
+                            style="top: 290px; left: 50px; width: 150px; height: 20px;">
+                            <span id="dispTelefono"></span>
+                        </div>
+
+                        <!-- Distrito -->
+                        <div id="field_distrito"
+                            class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
+                            style="top: 320px; left: 50px; width: 100px; height: 20px;">
+                            <span id="dispDistrito"></span>
+                        </div>
+
+                        <!-- Regional -->
+                        <div id="field_regional"
+                            class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
+                            style="top: 320px; left: 300px; width: 100px; height: 20px;">
+                            <span id="dispRegional"></span>
+                        </div>
+
+                        <!-- Provincia -->
+                        <div id="field_provincia"
+                            class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
+                            style="top: 350px; left: 50px; width: 200px; height: 20px;">
+                            <span id="dispProvincia"></span>
+                        </div>
+
+                        <!-- Municipio -->
+                        <div id="field_municipality"
+                            class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
+                            style="top: 380px; left: 50px; width: 200px; height: 20px;">
+                            <span id="dispMunicipio"></span>
+                        </div>
+
+                        <!-- Observaciones Generales (P1) -->
+                        <div id="field_obs_general"
+                            class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-start p-1"
+                            style="top: 420px; left: 50px; width: 400px; height: 60px;">
+                            <span id="dispObsGeneral" class="w-full h-full text-left"></span>
+                        </div>
+
                     </div>
-                    <div id="field_year2"
-                        class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
-                        style="top: 50px; left: 100px; width: 40px; height: 20px;">
-                        <span id="dispYear2">25</span>
-                    </div>
 
-                    <!-- Sección -->
-                    <div id="field_section"
-                        class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
-                        style="top: 80px; left: 50px; width: 100px; height: 20px;">
-                        <span id="dispSeccion"></span>
-                    </div>
-
-                    <!-- Orden -->
-                    <div id="field_orden"
-                        class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
-                        style="top: 80px; left: 300px; width: 50px; height: 20px;">
-                        <span id="dispOrden"></span>
-                    </div>
-
-                    <!-- Nombres -->
-                    <div id="field_nombres"
-                        class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
-                        style="top: 110px; left: 50px; width: 300px; height: 20px;">
-                        <span id="dispNombres"></span>
-                    </div>
-
-                    <!-- Apellidos -->
-                    <div id="field_apellidos"
-                        class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
-                        style="top: 140px; left: 50px; width: 300px; height: 20px;">
-                        <span id="dispApellidos"></span>
-                    </div>
-
-                    <!-- ID Estudiante -->
-                    <div id="field_id"
-                        class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
-                        style="top: 170px; left: 50px; width: 200px; height: 20px;">
-                        <span id="dispID"></span>
-                    </div>
-
-                    <!-- Docente -->
-                    <div id="field_docente"
-                        class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
-                        style="top: 200px; left: 50px; width: 300px; height: 20px;">
-                        <span id="dispDocente"></span>
-                    </div>
-
-                    <!-- Centro Educativo -->
-                    <div id="field_centro"
-                        class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
-                        style="top: 230px; left: 50px; width: 300px; height: 20px;">
-                        <span id="dispCentro"></span>
-                    </div>
-
-                    <!-- Código -->
-                    <div id="field_codigo"
-                        class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
-                        style="top: 260px; left: 50px; width: 100px; height: 20px;">
-                        <span id="dispCodigo"></span>
-                    </div>
-
-                    <!-- Tanda -->
-                    <div id="field_tanda"
-                        class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
-                        style="top: 260px; left: 300px; width: 100px; height: 20px;">
-                        <span id="dispTanda"></span>
-                    </div>
-
-                    <!-- Teléfono -->
-                    <div id="field_telefono"
-                        class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
-                        style="top: 290px; left: 50px; width: 150px; height: 20px;">
-                        <span id="dispTelefono"></span>
-                    </div>
-
-                    <!-- Distrito -->
-                    <div id="field_distrito"
-                        class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
-                        style="top: 320px; left: 50px; width: 100px; height: 20px;">
-                        <span id="dispDistrito"></span>
-                    </div>
-
-                    <!-- Regional -->
-                    <div id="field_regional"
-                        class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
-                        style="top: 320px; left: 300px; width: 100px; height: 20px;">
-                        <span id="dispRegional"></span>
-                    </div>
-
-                    <!-- Provincia -->
-                    <div id="field_provincia"
-                        class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
-                        style="top: 350px; left: 50px; width: 200px; height: 20px;">
-                        <span id="dispProvincia"></span>
-                    </div>
-
-                    <!-- Municipio -->
-                    <div id="field_municipality"
-                        class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-center dynamic-justify pl-1"
-                        style="top: 380px; left: 50px; width: 200px; height: 20px;">
-                        <span id="dispMunicipio"></span>
-                    </div>
-
-                    <!-- Observaciones Generales (P1) -->
-                    <div id="field_obs_general"
-                        class="draggable-field absolute resize-both overflow-hidden border border-transparent hover:border-blue-300 flex items-start p-1"
-                        style="top: 420px; left: 50px; width: 400px; height: 60px;">
-                        <span id="dispObsGeneral" class="w-full h-full text-left"></span>
-                    </div>
+                    <!-- TABLA OFICIAL (Restaurada) -->
+                    <!-- TABLE REMOVED BY USER REQUEST (Page 1 Summary) -->
 
                 </div>
-
-                <!-- TABLA OFICIAL (Restaurada) -->
-                <!-- TABLE REMOVED BY USER REQUEST (Page 1 Summary) -->
-
             </div>
-        </div>
 
-        <h3 class="no-print text-center text-gray-500 font-bold mb-2 mt-8">Página 2</h3>
-        <!-- PÁGINA 2 -->
-        <div id="page-2" class="a4-page relative shadow-lg border border-gray-400">
-            <!-- Canvas Fondo -->
-            <canvas id="canvas-page-2" class="pdf-canvas absolute inset-0 w-full h-full z-0"></canvas>
+            <h3 class="no-print text-center text-gray-500 font-bold mb-2 mt-8">Página 2</h3>
+            <!-- PÁGINA 2 -->
+            <div id="page-2" class="a4-page relative shadow-lg border border-gray-400">
+                <!-- Canvas Fondo -->
+                <canvas id="canvas-page-2" class="pdf-canvas absolute inset-0 w-full h-full z-0"></canvas>
 
-            <!-- Contenido Página 2 (Restaurado) -->
-            <div class="content-layer relative z-10 w-full h-full p-8 pt-12">
-                <div id="grades-grid-container" class="w-full"></div>
+                <!-- Contenido Página 2 (Restaurado) -->
+                <div class="content-layer relative z-10 w-full h-full p-8 pt-12">
+                    <div id="grades-grid-container" class="w-full"></div>
+                </div>
             </div>
         </div>
 
@@ -836,6 +846,39 @@
                     class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:text-sm">
                     Sí, Eliminar
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Descarga de Plantillas -->
+    <div id="templateModal"
+        class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-[7000]">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm transform transition-all scale-100">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-800">📥 Descargar Plantilla</h3>
+                <button type="button" id="btnCloseTemplateModal" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+            <p class="text-sm text-gray-600 mb-6">Seleccione el grado correspondiente para descargar la plantilla
+                oficial (V2).</p>
+
+            <div class="space-y-3">
+                <a href="assets/templates/Calificacion%201ro-2do.xlsx" download
+                    class="block w-full px-4 py-3 bg-blue-50 text-blue-700 rounded-lg border border-blue-200 hover:bg-blue-100 font-bold text-center transition-colors shadow-sm">
+                    1ro y 2do Grado
+                </a>
+                <a href="assets/templates/Calificacion%203ro.xlsx" download
+                    class="block w-full px-4 py-3 bg-blue-50 text-blue-700 rounded-lg border border-blue-200 hover:bg-blue-100 font-bold text-center transition-colors shadow-sm">
+                    3er Grado
+                </a>
+                <a href="assets/templates/Calificacion%204-6to.xlsx" download
+                    class="block w-full px-4 py-3 bg-blue-50 text-blue-700 rounded-lg border border-blue-200 hover:bg-blue-100 font-bold text-center transition-colors shadow-sm">
+                    4to, 5to y 6to Grado
+                </a>
             </div>
         </div>
     </div>
@@ -1154,34 +1197,123 @@
         </div>
     </div>
 
-    <!-- Progress Modal (ZIP Export) -->
-    <div id="progressModal"
+    <!-- Create Section Modal -->
+    <div id="create-section-modal"
         class="fixed inset-0 z-[6000] hidden flex items-center justify-center bg-gray-900 bg-opacity-75 backdrop-blur-sm">
-        <div class="bg-white rounded-lg shadow-2xl p-6 w-96 max-w-full text-center relative border border-gray-200">
-            <!-- Icon -->
-            <div class="mb-4">
-                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto animate-pulse">
-                    <span class="text-3xl">📦</span>
+        <div class="bg-white rounded-xl shadow-2xl w-[450px] max-w-[90vw] flex flex-col transform transition-all">
+
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-blue-50 rounded-t-xl">
+                <h3 class="text-lg font-bold text-blue-900 flex items-center gap-2">
+                    <span class="text-xl">📁</span> Crear Nueva Sección
+                </h3>
+                <button onclick="document.getElementById('create-section-modal').classList.add('hidden')"
+                    class="text-blue-400 hover:text-blue-700 focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-6 space-y-4 bg-white">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Nombre de la
+                        Sección</label>
+                    <input type="text" id="new-section-name"
+                        class="w-full border-gray-300 rounded-lg p-3 border focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-shadow"
+                        placeholder="Ej: 5to B, 6to A, 1er Ciclo...">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Plantilla /
+                            Grado</label>
+                        <select id="new-section-grade"
+                            class="w-full border-gray-300 rounded-lg p-3 border focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white cursor-pointer">
+                            <option value="1">1ro Primaria</option>
+                            <option value="2">2do Primaria</option>
+                            <option value="3">3ro Primaria</option>
+                            <option value="4" selected>4to Primaria</option>
+                            <option value="5">5to Primaria</option>
+                            <option value="6">6to Primaria</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Tanda /
+                            Turno</label>
+                        <select id="new-section-shift"
+                            class="w-full border-gray-300 rounded-lg p-3 border focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white cursor-pointer">
+                            <option value="Matutina">☀️ Matutina</option>
+                            <option value="Vespertina">🌙 Vespertina</option>
+                            <option value="Extendida">🕒 Extendida</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl flex justify-end items-center gap-3">
+                <button onclick="document.getElementById('create-section-modal').classList.add('hidden')"
+                    class="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 font-medium transition-colors">
+                    Cancelar
+                </button>
+                <button id="btn-confirm-create-section"
+                    class="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold transition-colors shadow-sm flex items-center gap-2">
+                    Crear Sección
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Modal (Universal Loading) -->
+    <div id="progressModal"
+        class="fixed inset-0 z-[9999] hidden flex items-center justify-center bg-gray-900/80 backdrop-blur-sm transition-opacity">
+        <div
+            class="bg-white rounded-2xl shadow-2xl p-8 w-[400px] max-w-[90vw] text-center relative border border-gray-100 transform transition-all">
+
+            <!-- Animated Icon -->
+            <div id="progressIcon" class="mb-6 flex justify-center">
+                <div class="relative w-20 h-20">
+                    <!-- Spinning ring -->
+                    <div class="absolute inset-0 border-4 border-blue-100 rounded-full"></div>
+                    <div
+                        class="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin">
+                    </div>
+                    <!-- Center Emoji/Icon -->
+                    <div id="progressCenterIcon" class="absolute inset-0 flex items-center justify-center text-3xl">
+                        📄
+                    </div>
                 </div>
             </div>
 
             <!-- Title -->
-            <h3 class="text-lg font-bold text-gray-800 mb-2">Generando Paquete ZIP</h3>
+            <h3 id="progressTitle" class="text-xl font-bold text-gray-800 mb-2 tracking-tight">Procesando...</h3>
 
             <!-- Status Text -->
-            <p id="progressStatus" class="text-sm text-gray-600 mb-4">Preparando archivos...</p>
+            <p id="progressStatus" class="text-sm text-gray-500 mb-6 font-medium">Preparando archivos...</p>
 
             <!-- Progress Bar Container -->
-            <div class="w-full bg-gray-200 rounded-full h-4 mb-2 overflow-hidden">
-                <div id="progressBar" class="bg-blue-600 h-4 rounded-full transition-all duration-300"
-                    style="width: 0%"></div>
+            <div class="w-full bg-gray-100 rounded-full h-3 mb-3 overflow-hidden shadow-inner">
+                <div id="progressBar"
+                    class="bg-gradient-to-r from-blue-500 to-indigo-600 h-full rounded-full transition-all duration-300 relative"
+                    style="width: 0%">
+                    <!-- Shimmer effect -->
+                    <div
+                        class="absolute top-0 right-0 bottom-0 left-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]">
+                    </div>
+                </div>
             </div>
 
             <!-- Percentage -->
-            <p id="progressPercent" class="text-xs font-bold text-blue-600 mb-6">0%</p>
+            <p id="progressPercent"
+                class="text-xs font-bold text-blue-700 mb-6 font-mono bg-blue-50 py-1 px-3 rounded-full inline-block">0%
+            </p>
 
             <!-- Cancel Button -->
-            <button id="btnCancelZip" class="text-red-500 hover:text-red-700 text-sm font-medium hover:underline">
+            <button id="btnCancelZip"
+                class="w-full text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 py-2.5 rounded-lg text-sm font-bold transition-colors">
                 Cancelar Operación
             </button>
         </div>
@@ -1275,7 +1407,309 @@
             </div>
         </div>
     </div>
-    <script type="module" src="src/js/app.js?v=56"></script>
+    <!-- Excel Import Preview Modal -->
+    <div id="excelPreviewModal" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 hidden">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <!-- Header -->
+            <div class="bg-green-600 px-5 py-4 flex items-center gap-3">
+                <span class="text-2xl">📊</span>
+                <div>
+                    <h3 class="text-white font-bold text-base">Vista Previa de Importación</h3>
+                    <p id="excelPreviewFileName" class="text-green-100 text-xs truncate max-w-xs"></p>
+                </div>
+            </div>
+
+            <!-- Body -->
+            <div class="p-5">
+                <!-- Summary -->
+                <div class="flex items-center gap-4 mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+                    <div class="text-center">
+                        <p class="text-2xl font-bold text-green-700" id="excelPreviewCount">0</p>
+                        <p class="text-xs text-gray-500">Estudiantes</p>
+                    </div>
+                    <div class="flex-1 border-l pl-4">
+                        <p class="text-xs text-gray-600"><span class="font-bold">Sección detectada:</span> <span
+                                id="excelPreviewSection" class="text-blue-600 font-semibold">—</span></p>
+                        <p class="text-xs text-gray-600 mt-1"><span class="font-bold">Tanda:</span> <span
+                                id="excelPreviewShift" class="text-blue-600 font-semibold">—</span></p>
+                    </div>
+                </div>
+
+                <!-- Warnings -->
+                <div id="excelPreviewWarnings" class="mb-4 hidden">
+                    <div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                        <p class="text-xs font-bold text-amber-700 mb-1">⚠️ Advertencias:</p>
+                        <ul id="excelPreviewWarningList" class="text-xs text-amber-700 space-y-1 list-disc list-inside">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Student Preview List -->
+                <div class="mb-4">
+                    <p class="text-xs font-bold text-gray-600 mb-2">Primeros estudiantes detectados:</p>
+                    <div id="excelPreviewList"
+                        class="space-y-1 max-h-36 overflow-y-auto text-xs border rounded-lg p-2 bg-gray-50">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex gap-3">
+                    <button id="btnExcelPreviewCancel"
+                        class="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm transition-colors">
+                        Cancelar
+                    </button>
+                    <button id="btnExcelPreviewConfirm"
+                        class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center justify-center gap-2">
+                        ✅ Importar Ahora
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ENVIAR FEEDBACK -->
+    <div id="feedback-modal"
+        class="fixed inset-0 bg-gray-900 bg-opacity-75 z-[10000] flex items-center justify-center hidden backdrop-blur-sm">
+        <div
+            class="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 overflow-hidden transform transition-all flex flex-col">
+            <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-blue-50">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">💡</span>
+                    <h3 class="text-lg font-bold text-gray-800">Comentarios y Sugerencias</h3>
+                </div>
+                <button id="btn-close-feedback" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6">
+                <div class="mb-4">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Tipo de Reporte:</label>
+                    <select id="feedback-type"
+                        class="w-full border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2">
+                        <option value="Sugerencia">💡 Sugerencia de mejora</option>
+                        <option value="Error">🐞 Reportar un Error / Bug</option>
+                        <option value="Duda">❓ Pregunta / Duda</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Detalle:</label>
+                    <textarea id="feedback-text" rows="4"
+                        class="w-full border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                        placeholder="Describe tu idea o el problema que encontraste..."></textarea>
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 border-t flex justify-end gap-3 flex-shrink-0">
+                <button id="btn-cancel-feedback"
+                    class="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded font-medium transition-colors">Cancelar</button>
+                <button id="btn-submit-feedback"
+                    class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium transition-colors shadow-sm flex items-center gap-2">
+                    Enviar 🚀
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL BANDEJA DE ENTRADA (ADMIN DASHBOARD) -->
+    <div id="feedback-inbox-modal"
+        class="fixed inset-0 bg-gray-900 bg-opacity-80 z-[10000] flex items-center justify-center hidden backdrop-blur-sm">
+        <div
+            class="bg-gray-50 rounded-lg shadow-2xl w-full max-w-5xl h-[90vh] mx-4 overflow-hidden transform transition-all flex flex-col">
+            <!-- Header -->
+            <div
+                class="px-6 py-4 border-b border-gray-200 bg-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 z-20">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-2xl shadow-inner">
+                        <span class="text-2xl">📥</span>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-800 tracking-tight">Centro de Soporte</h3>
+                        <p class="text-xs text-gray-500 font-medium">Panel Administrativo</p>
+                    </div>
+                </div>
+
+                <!-- Stats Pills -->
+                <div class="flex items-center gap-3">
+                    <div class="px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-md text-center">
+                        <p class="text-xs text-blue-600 font-bold uppercase tracking-wider">Total</p>
+                        <p id="admin-stat-total" class="text-lg font-black text-blue-800">0</p>
+                    </div>
+                    <div class="px-3 py-1.5 bg-red-50 border border-red-100 rounded-md text-center">
+                        <p class="text-xs text-red-600 font-bold uppercase tracking-wider">Pendientes</p>
+                        <p id="admin-stat-pending" class="text-lg font-black text-red-800">0</p>
+                    </div>
+                    <div class="px-3 py-1.5 bg-green-50 border border-green-100 rounded-md text-center">
+                        <p class="text-xs text-green-600 font-bold uppercase tracking-wider">Resueltos</p>
+                        <p id="admin-stat-resolved" class="text-lg font-black text-green-800">0</p>
+                    </div>
+
+                    <div class="ml-2 flex flex-col gap-1">
+                        <button id="btn-refresh-inbox"
+                            class="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors shadow-sm"
+                            title="Actualizar">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Close only for admins checking briefly (usually hidden for dedicated admin view) -->
+                <button id="btn-close-inbox"
+                    class="absolute top-4 right-4 p-1 text-gray-400 hover:text-red-500 transition-colors hidden sm:block">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Tabs -->
+            <div class="bg-white border-b border-gray-200 px-6 flex gap-6 overflow-x-auto z-10 shadow-sm relative">
+                <button
+                    class="admin-tab-btn active font-semibold text-sm py-3 border-b-2 border-blue-600 text-blue-600 whitespace-nowrap"
+                    data-filter="pending">
+                    ⏳ Pendientes
+                </button>
+                <button
+                    class="admin-tab-btn font-medium text-sm py-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap transition-colors"
+                    data-filter="resolved">
+                    ✔️ Resueltos / Archivo
+                </button>
+                <button
+                    class="admin-tab-btn font-medium text-sm py-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap transition-colors"
+                    data-filter="all">
+                    📋 Todos los Reportes
+                </button>
+
+                <!-- Quick Filter Dropdown -->
+                <div class="ml-auto py-2 flex items-center">
+                    <select id="admin-type-filter"
+                        class="text-sm bg-gray-50 border-gray-200 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="all">Todas las Categorías</option>
+                        <option value="Error">🐞 Errores</option>
+                        <option value="Sugerencia">💡 Sugerencias</option>
+                        <option value="Duda">❓ Dudas</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- List Container -->
+            <div class="p-6 flex-1 overflow-y-auto bg-gray-50/50">
+                <div id="feedback-inbox-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-max">
+                    <!-- Cards injected by JS -->
+                    <div class="col-span-1 md:col-span-2 flex flex-col items-center justify-center py-20 opacity-50">
+                        <div
+                            class="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4">
+                        </div>
+                        <p class="text-gray-500 font-medium">Sincronizando reportes...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div
+                class="bg-gray-100 px-6 py-3 border-t border-gray-200 flex justify-between items-center text-xs text-gray-500">
+                <span>Modo de Soporte y Diagnóstico</span>
+                <span id="admin-last-sync">Última sincr.: Nunca</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL LOGOUT -->
+    <div id="logout-modal"
+        class="fixed inset-0 bg-gray-900 bg-opacity-75 z-[9000] flex items-center justify-center hidden backdrop-blur-sm transition-opacity duration-300">
+        <div
+            class="bg-white rounded-lg shadow-2xl w-full max-w-sm mx-4 overflow-hidden transform transition-all scale-100 flex flex-col">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3 bg-red-50">
+                <div class="bg-red-100 text-red-600 rounded-full p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1">
+                        </path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-gray-800">Cerrar Sesión</h3>
+            </div>
+            <div class="p-6">
+                <p class="text-sm text-gray-600 mb-4">¿Estás seguro de que deseas cerrar sesión?</p>
+                <p class="text-xs text-gray-500 italic pb-2">Esto borrará los datos mostrados en pantalla para proteger
+                    tu privacidad. Tus datos enviados a la nube estarán a salvo.</p>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 border-t flex justify-end gap-3 flex-shrink-0">
+                <button id="btn-cancel-logout"
+                    class="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded font-medium transition-colors">Cancelar</button>
+                <button id="btn-confirm-logout"
+                    class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium transition-colors shadow-sm">
+                    Sí, cerrar sesión
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Export Buttons -->
+    <div class="fixed bottom-6 right-6 z-[9000] flex flex-col gap-2 print:hidden items-end">
+        <!-- Floating Controls List -->
+        <div id="floatingControls"
+            class="flex flex-col gap-3 mb-4 hidden transform transition-all duration-300 origin-bottom">
+
+            <button id="btnDownloadCurrent"
+                class="bg-teal-600 text-white w-10 h-10 rounded-full shadow-lg hover:bg-teal-700 hover:scale-105 flex items-center justify-center border border-teal-700 transition-transform"
+                title="Descargar Boletín Actual (PDF directo)">
+                <span class="text-lg">⬇️</span>
+            </button>
+
+            <button id="btnPrintIndividual"
+                class="bg-blue-600 text-white w-10 h-10 rounded-full shadow-lg hover:bg-blue-700 hover:scale-105 flex items-center justify-center border border-blue-700 transition-transform"
+                onclick="window.print()" title="Imprimir Individual (CTRL+P)">
+                <span class="text-lg">🖨️</span>
+            </button>
+
+            <button id="btnPrintBatch"
+                class="bg-purple-600 text-white w-10 h-10 rounded-full shadow-lg hover:bg-purple-700 hover:scale-105 flex items-center justify-center transition-transform"
+                title="Imprimir TODOS (Un solo PDF)">
+                <span class="text-lg">📚</span>
+            </button>
+
+            <button id="btnZipBatch"
+                class="bg-orange-500 text-white w-10 h-10 rounded-full shadow-lg hover:bg-orange-600 hover:scale-105 flex items-center justify-center transition-transform"
+                title="Descargar TODOS (PDFs Individuales en ZIP)">
+                <span class="text-lg">📦</span>
+            </button>
+
+            <button id="btnFloatEdit"
+                class="bg-white text-gray-600 w-10 h-10 rounded-full shadow-lg hover:bg-red-50 hover:text-red-600 hover:scale-105 flex items-center justify-center border border-gray-200 transition-transform"
+                title="Modo Edición (Mover Casillas)">
+                <span class="text-lg">✏️</span>
+            </button>
+
+            <button id="btnFloatOverlay"
+                class="bg-blue-600 text-white w-10 h-10 rounded-full shadow-lg hover:bg-blue-700 hover:scale-105 flex items-center justify-center border border-blue-700 transition-transform"
+                title="Vista Previa (Plantilla)">
+                <span class="text-lg">👁️</span>
+            </button>
+
+            <button id="btnExportProject"
+                class="bg-gray-800 text-white w-10 h-10 rounded-full shadow-lg hover:bg-gray-900 hover:scale-105 flex items-center justify-center opacity-80 hover:opacity-100 transition-transform"
+                title="Guardar Copia de Seguridad">
+                <span class="text-lg">💾</span>
+            </button>
+        </div>
+
+        <button id="btnToggleControls"
+            class="bg-gray-200 text-gray-700 w-10 h-10 rounded-full shadow-xl hover:bg-gray-300 flex items-center justify-center transition-transform border border-gray-300"
+            title="Mostrar/Ocultar Controles">
+            <span id="iconToggle" class="text-lg font-bold">⚙️</span>
+        </button>
+    </div>
+
+    <script type="module" src="src/js/app.js?v=92"></script>
 </body>
 
 </html>
