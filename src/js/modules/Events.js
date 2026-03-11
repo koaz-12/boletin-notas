@@ -500,23 +500,43 @@ export const Events = {
             // Google Sheets Sync
             if (target.closest('#btnSyncGoogleSheet')) {
                 const btn = target.closest('#btnSyncGoogleSheet');
-                const originalText = btn.innerHTML;
-                const url = document.getElementById('googleSheetUrlInput').value;
+                const btnIcon = btn.querySelector('.btn-icon');
+                const btnText = btn.querySelector('.btn-text');
+                const originalIcon = btnIcon.innerHTML;
+                const originalText = btnText.innerHTML;
+                const urlInput = document.getElementById('googleSheetUrlInput');
+                const url = urlInput.value;
 
                 if (!url) {
                     Toast.warning("Debes pegar el link de Google Sheets primero.");
                     return;
                 }
 
-                btn.innerHTML = '⏳ Traer...';
+                // Loading State
+                btnIcon.innerHTML = '⏳';
+                btnText.innerHTML = 'Descargando...';
+                btn.classList.add('opacity-75', 'cursor-not-allowed');
                 btn.disabled = true;
 
                 GoogleSheetsSync.fetchXLSXFromLink(url).then(fakeFile => {
-                    btn.innerHTML = originalText;
+                    // Reset Button
+                    btnIcon.innerHTML = originalIcon;
+                    btnText.innerHTML = originalText;
+                    btn.classList.remove('opacity-75', 'cursor-not-allowed');
                     btn.disabled = false;
-                    if (fakeFile) Events.showExcelPreview(fakeFile, null);
+
+                    if (fakeFile) {
+                        // Proceed to the same preview modal as local Excel
+                        Events.showExcelPreview(fakeFile, {
+                            files: [fakeFile],
+                            value: '' // Dummy value to prevent errors on reset
+                        });
+                    }
                 }).catch(err => {
-                    btn.innerHTML = originalText;
+                    // Reset Button
+                    btnIcon.innerHTML = originalIcon;
+                    btnText.innerHTML = originalText;
+                    btn.classList.remove('opacity-75', 'cursor-not-allowed');
                     btn.disabled = false;
                     Toast.error(err.message);
                 });

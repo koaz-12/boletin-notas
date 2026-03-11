@@ -475,19 +475,22 @@
                         </div>
 
                         <!-- NEW: Google Sheets Sync -->
-                        <div class="mt-2 bg-green-50/50 p-2 rounded border border-green-100">
-                            <label class="block text-[10px] font-bold text-green-700 mb-1 flex items-center gap-1">
-                                <span>🔗 Link de Google Sheets</span>
+                        <div class="mt-3">
+                            <label class="block text-xs font-bold text-green-700 mb-1 flex items-center gap-1">
+                                <span class="text-base leading-none">🔗</span> <span>Sincronizar Google Sheets</span>
                             </label>
-                            <div class="flex flex-col sm:flex-row gap-1 sm:gap-2 mt-1">
-                                <input type="text" id="googleSheetUrlInput" placeholder="https://docs.google.com/..."
-                                    class="flex-1 border p-1 rounded text-xs focus:ring-1 focus:ring-green-400 outline-none w-full" />
+                            <div class="flex flex-col sm:flex-row gap-2 mt-1">
+                                <input type="text" id="googleSheetUrlInput"
+                                    placeholder="Pega el link aquí (https://docs...)"
+                                    class="flex-1 border-2 border-green-100 p-2 rounded-lg text-xs focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none w-full bg-green-50/30 transition-shadow" />
                                 <button id="btnSyncGoogleSheet"
-                                    class="bg-green-600 hover:bg-green-700 text-white px-2 rounded text-xs font-bold transition-colors shadow-sm whitespace-nowrap"
-                                    title="Sincronizar Datos">
-                                    📥 Traer
+                                    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap min-w-[100px]"
+                                    title="Descargar y sincronizar datos desde Google Sheets">
+                                    <span class="btn-icon">📥</span> <span class="btn-text">Traer Notas</span>
                                 </button>
                             </div>
+                            <p class="text-[10px] text-gray-500 mt-1 ml-1">Requiere permiso "Cualquier persona con el
+                                enlace".</p>
                         </div>
                     </div>
 
@@ -1709,7 +1712,7 @@
         </button>
     </div>
 
-    <script type="module" src="src/js/app.js?v=92"></script>
+    <script type="module" src="src/js/app.js?v=93"></script>
 </body>
 
 </html>

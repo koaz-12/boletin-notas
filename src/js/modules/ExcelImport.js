@@ -192,12 +192,13 @@ export const ExcelImport = {
             // Scan columns in this row
             for (let c = 0; c < row.length; c++) {
                 const val = String(row[c] || "").trim().toLowerCase();
-                if (val.includes("nombres") || val.includes("nombre y apellido")) colName = c;
+                if (val.includes("nombre") || val.includes("estudiante")) colName = c;
                 if (val === "id" || val.includes("id estudiante")) colID = c;
                 if (val === "no." || val === "no" || val.includes("número")) colNo = c;
             }
 
-            if (colName !== -1 && colID !== -1) {
+            // ID column is optional. The critical identifier is the Student Name column.
+            if (colName !== -1) {
                 headerRowIndex = i;
                 break;
             }
