@@ -128,6 +128,9 @@ export const AppUI = {
                 if (syncTimeout) clearTimeout(syncTimeout);
 
                 syncTimeout = setTimeout(() => {
+                    // Guard: don't schedule another sync if one is already running
+                    if (window.__isSyncing__) return;
+
                     console.log("⏱️ Auto-Sync triggered due to inactivity...");
                     // Flash the Sync Button lightly to show background activity
                     const syncBtn = document.getElementById('btn-cloud-save');

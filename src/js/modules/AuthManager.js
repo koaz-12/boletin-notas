@@ -463,6 +463,13 @@ export const AuthManager = {
     },
 
     syncUserData: async function (forcePull = false) {
+        // Guard: prevent recursive sync loops
+        if (window.__isSyncing__ && !forcePull) {
+            console.log("⏸️ Sync already in progress, skipping.");
+            return;
+        }
+        window.__isSyncing__ = true;
+        try {
         const user = this.currentUser();
         if (user && user.get("username") === "soporte_admin") {
             return; // Admin does not sync school data
@@ -492,13 +499,21 @@ export const AuthManager = {
         const cloudTime = (result.data && result.data.timestamp) ? result.data.timestamp : 0;
 
         let hasStudents = false;
+        let hasRosterData = false;
         if (localBackup.data) {
             Object.values(localBackup.data).forEach(secData => {
                 const state = secData.state || secData;
+                // Check studentList (legacy)
                 const list = state.studentList;
                 if (list && list.length > 0) hasStudents = true;
+                // Check roster (new format) - has any keyed entries
+                const roster = state.roster;
+                if (roster && Object.keys(roster).length > 0) hasRosterData = true;
             });
         }
+
+        // Consider having multiple sections as a sign of real usage
+        const hasMultipleSections = localBackup.sections && Array.isArray(localBackup.sections) && localBackup.sections.length > 1;
 
         let hasImportedSection = false;
         if (localBackup.sections && Array.isArray(localBackup.sections)) {
@@ -507,7 +522,7 @@ export const AuthManager = {
             }
         }
 
-        const isLocalEmpty = !hasStudents && !hasImportedSection;
+        const isLocalEmpty = !hasStudents && !hasRosterData && !hasImportedSection && !hasMultipleSections;
 
         // FORCE PULL: User clicked Restore manually or Initial Login
         if (forcePull && result.data && !result.empty) {
@@ -571,6 +586,9 @@ export const AuthManager = {
                 Toast.show("❌ Error aplicando datos de la nube.", "error");
             }
             return;
+        }
+        } finally {
+            window.__isSyncing__ = false;
         }
     },
 
