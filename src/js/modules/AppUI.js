@@ -184,6 +184,36 @@ export const AppUI = {
             const tab = document.createElement('div');
             tab.className = tabClass;
 
+            // === DRAG-AND-DROP REORDER ===
+            tab.draggable = true;
+            tab.dataset.sectionIndex = sectionManager.sections.indexOf(sec);
+
+            tab.ondragstart = (e) => {
+                e.dataTransfer.setData('text/plain', tab.dataset.sectionIndex);
+                tab.style.opacity = '0.4';
+            };
+            tab.ondragend = () => {
+                tab.style.opacity = '1';
+            };
+            tab.ondragover = (e) => {
+                e.preventDefault();
+                tab.classList.add('ring-2', 'ring-blue-400');
+            };
+            tab.ondragleave = () => {
+                tab.classList.remove('ring-2', 'ring-blue-400');
+            };
+            tab.ondrop = (e) => {
+                e.preventDefault();
+                tab.classList.remove('ring-2', 'ring-blue-400');
+                const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                const toIndex = parseInt(tab.dataset.sectionIndex);
+                if (fromIndex !== toIndex) {
+                    sectionManager.moveSection(fromIndex, toIndex);
+                    AppUI.renderSections(store); // Re-render tabs immediately
+                    store.notify(); // Force full UI refresh
+                }
+            };
+
             tab.onclick = () => {
                 if (!isActive) store.switchSection(sec.id);
             };
@@ -348,29 +378,29 @@ export const AppUI = {
             gradeSelect.value = state.grade;
         }
 
+        const g = parseInt(state.grade);
+
         // Update Header Title
         const headerDisp = document.getElementById('dispHeaderGrade');
         if (headerDisp) {
-            const g = parseInt(state.grade);
             let suffix = "to";
             if (g === 1 || g === 3) suffix = "er";
             if (g === 2) suffix = "do";
             headerDisp.textContent = `(${g}${suffix} Grado)`;
+        }
 
-            // Hide/Show Final Condition Input based on grade
-            const condInput = document.getElementById('inputCondicion');
-            const condContainer = document.getElementById('containerSituacionFinal');
+        // Hide/Show Final Condition & Situación Final based on grade (ALWAYS runs)
+        const condInput = document.getElementById('inputCondicion');
+        const condContainer = document.getElementById('containerSituacionFinal');
+        const shouldHide = (g <= 2);
 
-            const shouldHide = (g <= 2);
-
-            if (condInput) {
-                if (shouldHide) condInput.classList.add('hidden');
-                else condInput.classList.remove('hidden');
-            }
-            if (condContainer) {
-                if (shouldHide) condContainer.classList.add('hidden');
-                else condContainer.classList.remove('hidden');
-            }
+        if (condInput) {
+            if (shouldHide) condInput.classList.add('hidden');
+            else condInput.classList.remove('hidden');
+        }
+        if (condContainer) {
+            if (shouldHide) condContainer.classList.add('hidden');
+            else condContainer.classList.remove('hidden');
         }
     },
 

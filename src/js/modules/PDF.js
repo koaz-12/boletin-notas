@@ -165,12 +165,17 @@ export const PDFManager = {
                 try {
                     // Helper: Copy canvas bitmap content (cloneNode doesn't copy canvas pixels)
                     const copyCanvas = (srcParent, destParent) => {
-                        const srcCan = srcParent.querySelector('canvas');
-                        const destCan = destParent.querySelector('canvas');
-                        if (srcCan && destCan) {
-                            const ctx = destCan.getContext('2d');
-                            ctx.drawImage(srcCan, 0, 0);
-                        }
+                        const srcCanvases = srcParent.querySelectorAll('canvas');
+                        const destCanvases = destParent.querySelectorAll('canvas');
+                        srcCanvases.forEach((srcCan, i) => {
+                            const destCan = destCanvases[i];
+                            if (srcCan && destCan) {
+                                destCan.width = srcCan.width;
+                                destCan.height = srcCan.height;
+                                const ctx = destCan.getContext('2d');
+                                ctx.drawImage(srcCan, 0, 0);
+                            }
+                        });
                     };
 
                     // Async loop so DOM has time to update between students
@@ -185,7 +190,7 @@ export const PDFManager = {
                         const p2 = document.getElementById('page-2');
 
                         const c1 = p1.cloneNode(true);
-                        c1.removeAttribute('id'); // Prevent duplicate IDs
+                        c1.removeAttribute('id');
                         copyCanvas(p1, c1);
 
                         // Only include page 2 if the loaded PDF template actually has 2 pages
@@ -206,33 +211,98 @@ export const PDFManager = {
                         }
                     }
 
-                    // === NUCLEAR APPROACH ===
-                    // Physically detach ALL body children except batch container
-                    // This guarantees no interference from live elements during print
-                    const detachedNodes = [];
-                    while (document.body.firstChild) {
-                        detachedNodes.push(document.body.removeChild(document.body.firstChild));
-                    }
+                    // === HIDE APPROACH (preserves stylesheets unlike nuclear detach) ===
+                    // Hide all existing body children with inline !important so they don't print
+                    // but ALL <style> tags and CSS rules remain active
+                    const hiddenElements = [];
+                    Array.from(document.body.children).forEach(el => {
+                        const prev = el.style.display;
+                        el.style.setProperty('display', 'none', 'important');
+                        hiddenElements.push({ el, prev });
+                    });
 
-                    // Add only the batch container to body
+                    // Add the batch container (visible)
                     document.body.appendChild(batchContainer);
+
+                    // --- INJECT DYNAMIC PRINT STYLES ---
+                    // Read the live CSS variables from the original document
+                    const docStyles = document.documentElement.style;
+                    const p1Styles = document.getElementById('page-1')?.style;
+                    const p2Styles = document.getElementById('page-2')?.style;
+
+                    const getVar = (name, src) => src ? src.getPropertyValue(name) : null;
+                    
+                    // Build a style block to force these variables onto the batch container
+                    const dynamicStyle = document.createElement('style');
+                    dynamicStyle.id = 'batch-dynamic-print-styles';
+                    dynamicStyle.textContent = `
+                        @media print {
+                            #batch-print-container {
+                                --report-font-size: ${getVar('--report-font-size', docStyles) || '11px'} !important;
+                                --report-text-align: ${getVar('--report-text-align', p1Styles) || 'center'} !important;
+                                --report-justify: ${getVar('--report-justify', p1Styles) || 'center'} !important;
+                                --report-padding: ${getVar('--report-padding', p1Styles) || '0px'} !important;
+                                --report-font-weight: ${getVar('--report-font-weight', p1Styles) || 'normal'} !important;
+                                --report-p2-grades-align: ${getVar('--report-p2-grades-align', p2Styles) || 'center'} !important;
+                                --report-p2-obs-align: ${getVar('--report-p2-obs-align', p2Styles) || 'left'} !important;
+                                --report-p2-grades-weight: ${getVar('--report-p2-grades-weight', p2Styles) || 'normal'} !important;
+                                --report-p2-obs-weight: ${getVar('--report-p2-obs-weight', p2Styles) || 'normal'} !important;
+                            }
+                            
+                            /* Ensure children rigorously inherit the variables */
+                            #batch-print-container .content-layer input,
+                            #batch-print-container .content-layer textarea,
+                            #batch-print-container .box-input,
+                            #batch-print-container .report-input,
+                            #batch-print-container .draggable-field span {
+                                text-align: var(--report-text-align) !important;
+                                padding-left: var(--report-padding, 0px) !important;
+                                padding-right: var(--report-padding, 0px) !important;
+                            }
+
+                            #batch-print-container div[id^="grade_"] span,
+                            #batch-print-container div[id^="grade_"] input {
+                                text-align: var(--report-p2-grades-align) !important;
+                                font-weight: var(--report-p2-grades-weight, normal) !important;
+                            }
+
+                            #batch-print-container div[id^="overlay_"] span,
+                            #batch-print-container div[id^="overlay_"] input {
+                                text-align: var(--report-p2-obs-align) !important;
+                                font-weight: var(--report-p2-obs-weight, normal) !important;
+                            }
+
+                            #batch-print-container .dynamic-justify {
+                                justify-content: var(--report-justify) !important;
+                            }
+                        }
+                    `;
+                    document.head.appendChild(dynamicStyle);
 
                     // Trigger Print
                     window.print();
 
-                    // === RESTORE ALL BODY CHILDREN ===
+                    // === RESTORE ===
+                    dynamicStyle.remove();
                     batchContainer.remove();
-                    detachedNodes.forEach(node => document.body.appendChild(node));
+                    hiddenElements.forEach(({ el, prev }) => {
+                        el.style.display = prev;
+                    });
 
                 } catch (e) {
                     console.error(e);
                     Toast.error("Error generando PDF masivo: " + e.message);
-                    // Emergency restore if something went wrong
-                    if (document.body.children.length <= 1) {
-                        batchContainer.remove();
-                        window.location.reload();
-                    }
                 } finally {
+                    // Cleanup: make sure batch container is gone and elements are visible
+                    if (batchContainer.parentNode) batchContainer.remove();
+                    const injectedCSS = document.getElementById('batch-dynamic-print-styles');
+                    if (injectedCSS) injectedCSS.remove();
+                    
+                    Array.from(document.body.children).forEach(el => {
+                        if (el.id !== 'batch-print-container') {
+                            el.style.removeProperty('display');
+                        }
+                    });
                     if (initialStudent) store.loadStudent(initialStudent);
                 }
             }

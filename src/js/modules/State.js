@@ -61,6 +61,15 @@ class SectionManager {
         }
     }
 
+    // Move a section to a new index position (for drag-and-drop reorder)
+    moveSection(fromIndex, toIndex) {
+        if (fromIndex < 0 || fromIndex >= this.sections.length) return;
+        if (toIndex < 0 || toIndex >= this.sections.length) return;
+        const [moved] = this.sections.splice(fromIndex, 1);
+        this.sections.splice(toIndex, 0, moved);
+        this.saveSections();
+    }
+
     setCurrent(id) {
         this.currentSectionId = id;
         localStorage.setItem('minerd_current_section_id', id);
@@ -329,14 +338,55 @@ export class AppState {
     }
 
     deleteSectionInternal(id) {
-        if (sectionManager.sections.length <= 1) {
-            alert("No puedes eliminar la última sección.");
+        const isLastSection = sectionManager.sections.length <= 1;
+
+        if (isLastSection) {
+            // Last tab: offer to CLEAR all data instead of deleting
+            if (confirm("Esta es la última sección.\n¿Deseas BORRAR TODOS los datos de esta sección?\n\n(La pestaña se mantendrá pero vacía)")) {
+                // Clear the data for this section
+                localStorage.removeItem('minerd_data_' + id);
+                // Reset in-memory state to blank
+                this.resetState();
+                const meta = sectionManager.getCurrent();
+                if (meta) {
+                    this.state.grade = meta.grade;
+                    this.state.schoolData.tanda = meta.shift;
+                    this.state.schoolData.section = meta.name;
+                    this.loadSubjectsForGrade(meta.grade);
+                }
+                // Save the empty state so it persists
+                this.saveToLocalStorage();
+                // Block cloud sync from immediately overwriting the cleared data
+                window.__isSyncing__ = true;
+                setTimeout(() => { window.__isSyncing__ = false; }, 15000); // 15s grace period
+                this.notify();
+            }
             return;
         }
+
         if (confirm("¿Seguro de borrar esta sección y TODOS sus datos?")) {
+            // Delete the section (also removes localStorage data and updates currentSectionId)
             sectionManager.deleteSection(id);
-            // Reload current (which changed inside deleteSection if we deleted the active one)
-            this.switchSection(sectionManager.currentSectionId);
+
+            // DIRECT LOAD: Do NOT use switchSection() because it calls saveToLocalStorage()
+            // first, which would save empty/stale data into the next section's key.
+            this.resetState();
+            const newId = sectionManager.currentSectionId;
+            if (newId) {
+                sectionManager.setCurrent(newId);
+                if (!this.loadFromLocalStorage()) {
+                    // New section defaults
+                    const meta = sectionManager.getCurrent();
+                    if (meta) {
+                        this.state.grade = meta.grade;
+                        this.state.schoolData.tanda = meta.shift;
+                        this.state.schoolData.section = meta.name;
+                        this.loadSubjectsForGrade(meta.grade);
+                    }
+                }
+            }
+            this.notify();
+            window.dispatchEvent(new Event('minerd:section-switched'));
         }
     }
 
@@ -352,16 +402,61 @@ export class AppState {
 
     setGrade(grade) {
         if (this.state.grade === grade) return;
+
+        // Confirm because changing grade resets the grades/subjects grid
+        const hasStudents = this.state.studentList && this.state.studentList.length > 0;
+        if (hasStudents) {
+            const ok = confirm(
+                `¿Cambiar a Grado ${grade}?\n\n` +
+                `⚠️ Las calificaciones de todas las materias se reiniciarán para adaptarse al nuevo grado.\n\n` +
+                `✅ Se mantendrán: Lista de estudiantes, datos del centro, observaciones y asistencia.`
+            );
+            if (!ok) {
+                // Revert the selector UI
+                this.notify();
+                return;
+            }
+        }
+
         this.state.grade = grade;
+
+        // Reset subjects for current student
         this.loadSubjectsForGrade(grade);
+
+        // Also reset subjects in ALL stored roster entries for this section
+        // so switching students doesn't load old grade's subjects
+        if (this.state.roster) {
+            const rosterNames = Object.keys(this.state.roster);
+            rosterNames.forEach(name => {
+                const entry = this.state.roster[name];
+                if (entry) {
+                    const subjectNames = this.gradeConfig[grade] || this.gradeConfig["1"];
+                    entry.subjects = subjectNames.map(sn => ({
+                        name: sn,
+                        final: "", recovery: "", final_recovery: "", special_recovery: "",
+                        competencies: [
+                            { name: "C1", p1: "", rp1: "", p2: "", rp2: "", p3: "", rp3: "", p4: "", rp4: "", final: "", recovery: "" },
+                            { name: "C2", p1: "", rp1: "", p2: "", rp2: "", p3: "", rp3: "", p4: "", rp4: "", final: "", recovery: "" },
+                            { name: "C3", p1: "", rp1: "", p2: "", rp2: "", p3: "", rp3: "", p4: "", rp4: "", final: "", recovery: "" }
+                        ]
+                    }));
+                    // Clear final condition and status for grades 1-2
+                    if (parseInt(grade) <= 2) {
+                        entry.finalCondition = "";
+                        entry.studentStatus = { promoted: "", postponed: "", repeater: "" };
+                    }
+                }
+            });
+        }
 
         // Update Section Metadata too
         const cur = sectionManager.getCurrent();
         if (cur) {
             cur.grade = grade;
-            sectionManager.saveSections(); // Persist metadata change
+            sectionManager.saveSections();
         }
 
+        this.saveToLocalStorage();
         this.notify();
     }
 
@@ -634,15 +729,17 @@ export class AppState {
                 backupObj.studentList = Object.keys(backupObj.roster);
             }
 
-            // Create a new section for this imported data
+            // Create a new section for this imported data (with unique name)
             const secId = 'sec_' + Date.now();
-            const secName = 'Importado (V1)';
+            const baseSecName = 'Importado (V1)';
+            // Generate unique name if one already exists (e.g. "Importado (V1) #2")
+            const existingCount = sectionManager.sections.filter(s => s.name.startsWith(baseSecName)).length;
+            const secName = existingCount > 0 ? `${baseSecName} #${existingCount + 1}` : baseSecName;
             const secGrade = backupObj.grade ? String(backupObj.grade) : '1';
             const newSection = { id: secId, name: secName, grade: secGrade };
 
-            // Merge with existing sections (don't wipe others)
-            const existingSections = sectionManager.sections.filter(s => s.name !== secName);
-            const allSections = [...existingSections, newSection];
+            // Merge with existing sections (keep ALL existing tabs)
+            const allSections = [...sectionManager.sections, newSection];
 
             // Persist section index
             localStorage.setItem('minerd_sections_index', JSON.stringify(allSections));

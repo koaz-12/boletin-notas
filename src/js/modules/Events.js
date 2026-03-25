@@ -48,6 +48,8 @@ export const Events = {
             if (s.studentList.length === 0) {
                 AppUtils.switchTab('grades');
             }
+            // Reload PDF template for this section's grade
+            PDFManager.loadTemplate(s.grade);
         });
 
         // 1. Store Updates -> UI Render
