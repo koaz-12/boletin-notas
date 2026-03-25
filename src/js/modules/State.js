@@ -627,45 +627,48 @@ export class AppState {
 
         // Legacy Support (Migration V1 -> V2)
         if (!backupObj.sections && (backupObj.studentList || backupObj.roster)) {
-            console.log("⚠️ Old Backup Format Detected. Migrating...");
+            console.log("⚠️ Old V1 Backup Format Detected. Migrating to V2 structure...");
 
-            // Fix: Reconstruct studentList if missing (Common in V1 backups)
+            // Rebuild studentList from roster keys if missing
             if (!backupObj.studentList && backupObj.roster) {
                 backupObj.studentList = Object.keys(backupObj.roster);
             }
 
-            // Construct a virtual V2 structure
-            const currentId = sectionManager.currentSectionId || Date.now().toString();
+            // Create a new section for this imported data
+            const secId = 'sec_' + Date.now();
+            const secName = 'Importado (V1)';
+            const secGrade = backupObj.grade ? String(backupObj.grade) : '1';
+            const newSection = { id: secId, name: secName, grade: secGrade };
 
-            // Ensure Section Exists OR Update Name
-            let currentSec = sectionManager.sections.find(s => s.id === currentId);
-            if (!currentSec) {
-                currentSec = { id: currentId, name: "Importado (V1)", grade: backupObj.grade ? String(backupObj.grade) : "1" };
-                sectionManager.sections.push(currentSec);
-            } else {
-                // Force rename to mark as imported (critical for sync protection)
-                currentSec.name = "Importado (V1)";
-            }
-            localStorage.setItem('minerd_sections_index', JSON.stringify(sectionManager.sections));
-            sectionManager.setCurrent(currentId);
+            // Merge with existing sections (don't wipe others)
+            const existingSections = sectionManager.sections.filter(s => s.name !== secName);
+            const allSections = [...existingSections, newSection];
 
-            // Validate Data Structure before saving
-            // V2 Expects wrapper: { version: 2, state: { ... } }
+            // Persist section index
+            localStorage.setItem('minerd_sections_index', JSON.stringify(allSections));
+            sectionManager.sections = allSections;
+
+            // Save data with a timestamp far in the future to WIN any cloud sync conflict
             const v2Data = {
                 version: 2,
-                // Add 10 seconds offset to GUARANTEE being "newer" than any recent cloud sync
-                timestamp: Date.now() + 10000,
+                timestamp: Date.now() + 86400000, // +24h, guarantees local wins over cloud
                 state: backupObj
             };
+            const key = 'minerd_data_' + secId;
+            localStorage.setItem(key, JSON.stringify(v2Data));
 
-            localStorage.setItem('minerd_data_' + currentSec.id, JSON.stringify(v2Data));
-
-            // === IMPORT LOCK: Prevent Cloud Sync from Overwriting ===
+            // === IMPORT LOCK: Prevent Cloud Sync from Overwriting for 10 minutes ===
             localStorage.setItem('minerd_import_lock', Date.now().toString());
-            console.log("🔒 Import Lock Set. Cloud Sync will respect this.");
+            window.__MINERD_IMPORT_LOCK__ = true;
+            console.log("🔒 Import Lock Set (10 min). V1 data protected.");
 
-            // Reload
-            window.location.reload();
+            // Hot-reload in memory (no full page reload — avoids triggering cloud overwrite)
+            sectionManager.setCurrent(secId);
+            this.resetState();
+            this.loadFromLocalStorage();
+            this.notify();
+
+            console.log("✅ V1 Migration complete. Section:", secName, "ID:", secId);
             return true;
         }
 

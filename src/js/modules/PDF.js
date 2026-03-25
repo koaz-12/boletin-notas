@@ -158,17 +158,21 @@ export const PDFManager = {
                 // Save current student to restore later
                 const initialStudent = state.currentStudent;
 
-                // Prep UI
-                const reportContainer = document.querySelector('#report-container'); // The visible one
+                // Prep batch container
                 const batchContainer = document.createElement('div');
                 batchContainer.id = 'batch-print-container';
-                batchContainer.className = 'print-only'; // Ensure CSS only shows this
-
-                // Hide main container
-                reportContainer.classList.add('hidden');
-                document.body.appendChild(batchContainer);
 
                 try {
+                    // Helper: Copy canvas bitmap content (cloneNode doesn't copy canvas pixels)
+                    const copyCanvas = (srcParent, destParent) => {
+                        const srcCan = srcParent.querySelector('canvas');
+                        const destCan = destParent.querySelector('canvas');
+                        if (srcCan && destCan) {
+                            const ctx = destCan.getContext('2d');
+                            ctx.drawImage(srcCan, 0, 0);
+                        }
+                    };
+
                     // Async loop so DOM has time to update between students
                     for (const studentName of students) {
                         store.loadStudent(studentName);
@@ -181,45 +185,58 @@ export const PDFManager = {
                         const p2 = document.getElementById('page-2');
 
                         const c1 = p1.cloneNode(true);
-                        const c2 = p2.cloneNode(true);
-
-                        // FIX: Manually copy Canvas content (cloneNode doesn't copy canvas bitmap)
-                        const copyCanvas = (srcParent, destParent) => {
-                            const srcCan = srcParent.querySelector('canvas');
-                            const destCan = destParent.querySelector('canvas');
-                            if (srcCan && destCan) {
-                                const ctx = destCan.getContext('2d');
-                                ctx.drawImage(srcCan, 0, 0);
-                            }
-                        };
+                        c1.removeAttribute('id'); // Prevent duplicate IDs
                         copyCanvas(p1, c1);
-                        copyCanvas(p2, c2);
 
-                        c1.style.breakAfter = 'always';
-                        c1.style.pageBreakAfter = 'always';
-                        c2.style.breakAfter = 'always';
-                        c2.style.pageBreakAfter = 'always';
+                        // Only include page 2 if the loaded PDF template actually has 2 pages
+                        const templateHasP2 = this.pdfDoc && this.pdfDoc.numPages >= 2;
+                        let c2 = null;
+                        if (p2 && templateHasP2) {
+                            c2 = p2.cloneNode(true);
+                            c2.removeAttribute('id');
+                            copyCanvas(p2, c2);
+                        }
 
                         c1.classList.remove('hidden');
-                        c2.classList.remove('hidden');
-
                         batchContainer.appendChild(c1);
-                        batchContainer.appendChild(c2);
+
+                        if (c2) {
+                            c2.classList.remove('hidden');
+                            batchContainer.appendChild(c2);
+                        }
                     }
+
+                    // === NUCLEAR APPROACH ===
+                    // Physically detach ALL body children except batch container
+                    // This guarantees no interference from live elements during print
+                    const detachedNodes = [];
+                    while (document.body.firstChild) {
+                        detachedNodes.push(document.body.removeChild(document.body.firstChild));
+                    }
+
+                    // Add only the batch container to body
+                    document.body.appendChild(batchContainer);
 
                     // Trigger Print
                     window.print();
 
+                    // === RESTORE ALL BODY CHILDREN ===
+                    batchContainer.remove();
+                    detachedNodes.forEach(node => document.body.appendChild(node));
+
                 } catch (e) {
                     console.error(e);
                     Toast.error("Error generando PDF masivo: " + e.message);
+                    // Emergency restore if something went wrong
+                    if (document.body.children.length <= 1) {
+                        batchContainer.remove();
+                        window.location.reload();
+                    }
                 } finally {
-                    // Restore
-                    batchContainer.remove();
-                    reportContainer.classList.remove('hidden');
                     if (initialStudent) store.loadStudent(initialStudent);
                 }
             }
+
         );
     },
 

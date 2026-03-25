@@ -423,4 +423,14 @@ body.edit-mode-active .draggable-field:hover::after {
     #report-container {
         width: 100%;
     }
+
+    /* Batch Print: hide the live report container so it doesn't bleed extra pages */
+    #report-container.hidden {
+        display: none !important;
+    }
+
+    /* Batch Print: ensure the generated batch container is visible */
+    #batch-print-container {
+        display: block !important;
+    }
 }
