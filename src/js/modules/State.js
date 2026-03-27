@@ -91,6 +91,11 @@ export class AppState {
 
         // Debounced save
         this.debouncedSave = CoreUtils.debounce(() => this.saveToLocalStorage(), 1000);
+
+        // Undo/Redo Engine
+        this.undoStack = [];
+        this.redoStack = [];
+        this.MAX_HISTORY = 15;
     }
 
     init() {
@@ -183,9 +188,89 @@ export class AppState {
         };
     }
 
+    // --- UNDO / REDO SYSTEM ---
+    takeSnapshot() {
+        if (!this.state.studentList || this.state.studentList.length === 0) return;
+        
+        // Ensure local active edits are flushed into the roster
+        this.saveCurrentStudent();
+
+        const snapStr = JSON.stringify({
+            roster: this.state.roster,
+            studentList: this.state.studentList,
+            currentStudent: this.state.currentStudent
+        });
+
+        // Don't push if it's identical to the last one
+        if (this.undoStack.length > 0 && this.undoStack[this.undoStack.length - 1] === snapStr) return;
+
+        this.undoStack.push(snapStr);
+        if (this.undoStack.length > this.MAX_HISTORY) {
+            this.undoStack.shift();   
+        }
+        this.redoStack = []; // Clear redo on new action
+        window.dispatchEvent(new Event('minerd:history-changed'));
+    }
+
+    undo() {
+        if (this.undoStack.length === 0) return false;
+        
+        this.saveCurrentStudent();
+        const currentSnapStr = JSON.stringify({
+            roster: this.state.roster,
+            studentList: this.state.studentList,
+            currentStudent: this.state.currentStudent
+        });
+
+        const prevSnapStr = this.undoStack.pop();
+        if (currentSnapStr !== prevSnapStr) {
+            this.redoStack.push(currentSnapStr);
+        }
+
+        this.applySnapshot(prevSnapStr);
+        return true;
+    }
+
+    redo() {
+        if (this.redoStack.length === 0) return false;
+
+        this.saveCurrentStudent();
+        const currentSnapStr = JSON.stringify({
+            roster: this.state.roster,
+            studentList: this.state.studentList,
+            currentStudent: this.state.currentStudent
+        });
+
+        const nextSnapStr = this.redoStack.pop();
+        this.undoStack.push(currentSnapStr);
+
+        this.applySnapshot(nextSnapStr);
+        return true;
+    }
+
+    applySnapshot(snapStr) {
+        const snap = JSON.parse(snapStr);
+        this.state.roster = snap.roster;
+        this.state.studentList = snap.studentList;
+
+        if (snap.currentStudent && this.state.studentList.includes(snap.currentStudent)) {
+            this.loadStudent(snap.currentStudent, false);
+        } else if (this.state.studentList.length > 0) {
+            this.loadStudent(this.state.studentList[0], false);
+        } else {
+            this.state.currentStudent = null;
+        }
+
+        this.notify();
+        window.dispatchEvent(new Event('minerd:history-changed'));
+        window.dispatchEvent(new Event('minerd:section-switched')); // Force full re-render
+    }
+
     // --- RECYCLE BIN ---
     moveToTrash(studentName) {
         if (!this.state.roster[studentName]) return false;
+        
+        this.takeSnapshot(); // Snapshot before deleting
 
         const studentData = JSON.parse(JSON.stringify(this.state.roster[studentName]));
 
@@ -222,6 +307,8 @@ export class AppState {
 
         const index = this.state.trashBin.findIndex(item => item.deletedAt === deletedAt);
         if (index === -1) return false;
+        
+        this.takeSnapshot(); // Snapshot before restoring
 
         const item = this.state.trashBin[index];
         let nameToRestore = item.name;
@@ -312,6 +399,9 @@ export class AppState {
         sectionManager.setCurrent(sectionId);
 
         // 3. Reset State & Load New
+        this.undoStack = [];
+        this.redoStack = [];
+        window.dispatchEvent(new Event('minerd:history-changed'));
         this.resetState();
         if (!this.loadFromLocalStorage()) {
             // New section defaults

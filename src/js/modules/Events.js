@@ -332,6 +332,13 @@ export const Events = {
                 reader.readAsText(file);
             }
 
+            // --- UNDO / REDO SNAPSHOT ---
+            // Take a snapshot right before modifying grades or observations
+            const trackedActions = ['updateGrade', 'updateRecovery', 'updateObservation', 'updateAttendance'];
+            if (trackedActions.includes(target.dataset.action)) {
+                store.takeSnapshot();
+            }
+
             // Grades Binding (Moved here from input)
             if (target.dataset.action === 'updateGrade') {
                 isInternalGridUpdate = true;
@@ -625,6 +632,28 @@ export const Events = {
                 }
             }
         });
+
+        // --- UNDO / REDO KEYBOARD SHORTCUTS ---
+        document.addEventListener('keydown', (e) => {
+            // Check for Ctrl+Z
+            if (e.ctrlKey && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+                // If the user is typing in a text field, let the browser handle natural text undo.
+                // We only do global state Undo if they blur the field, or if they are NOT in a text field.
+                if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
+                    // Commit current text field edits before undoing the app state
+                    document.activeElement.blur();
+                }
+                e.preventDefault();
+                if (store.undo()) Toast.info("Deshacer (Undo)");
+            }
+
+            // Check for Ctrl+Y or Ctrl+Shift+Z
+            if ((e.ctrlKey && (e.key === 'y' || e.key === 'Y')) || (e.ctrlKey && e.shiftKey && (e.key === 'z' || e.key === 'Z'))) {
+                e.preventDefault();
+                if (store.redo()) Toast.info("Rehacer (Redo)");
+            }
+        });
+
     },
 
     // Export Project Backup

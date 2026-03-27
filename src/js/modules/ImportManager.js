@@ -188,6 +188,7 @@ export const ImportManager = {
                     });
 
                     if (added > 0) {
+                        store.takeSnapshot(); // Snapshot before overriding roster
                         store.setRoster(newList, newRoster);
                         Toast.success(`¡Éxito! Se añadieron ${added} estudiantes nuevos.`);
                         store.loadStudent(newList[newList.length - 1]);
@@ -493,6 +494,7 @@ export const ImportManager = {
                         delete newRoster["Estudiante 1"];
                     }
 
+                    store.takeSnapshot(); // Snapshot before overriding roster
                     store.setRoster(newStudentList, newRoster);
                     Toast.success(`Importación masiva completada. ${updatedStudents.size} estudiantes actualizados.`);
                     document.getElementById('importModal').classList.add('hidden');
@@ -635,6 +637,7 @@ export const ImportManager = {
                     }
 
                     // Save
+                    store.takeSnapshot(); // Snapshot before single Excel import override
                     store.setRoster(state.studentList, newRoster);
                     Toast.success(`Importado para: ${studentName}`);
                 }
