@@ -299,7 +299,7 @@ export class AppState {
         if (currentSecMeta) {
             this.state.grade = currentSecMeta.grade;
             this.state.schoolData.tanda = currentSecMeta.shift;
-            this.state.schoolData.section = currentSecMeta.name; // Keep name in sync
+            // Removed: this.state.schoolData.section = currentSecMeta.name; so Tab Name doesn't overwrite Section Input
         }
     }
 
@@ -319,7 +319,7 @@ export class AppState {
             if (meta) {
                 this.state.grade = meta.grade;
                 this.state.schoolData.tanda = meta.shift;
-                this.state.schoolData.section = meta.name;
+                // Removed: this.state.schoolData.section = meta.name;
                 this.loadSubjectsForGrade(meta.grade);
             }
             this.saveCurrentStudent();
@@ -351,7 +351,7 @@ export class AppState {
                 if (meta) {
                     this.state.grade = meta.grade;
                     this.state.schoolData.tanda = meta.shift;
-                    this.state.schoolData.section = meta.name;
+                    // Removed: this.state.schoolData.section = meta.name;
                     this.loadSubjectsForGrade(meta.grade);
                 }
                 // Save the empty state so it persists
@@ -380,7 +380,7 @@ export class AppState {
                     if (meta) {
                         this.state.grade = meta.grade;
                         this.state.schoolData.tanda = meta.shift;
-                        this.state.schoolData.section = meta.name;
+                        // Removed: this.state.schoolData.section = meta.name;
                         this.loadSubjectsForGrade(meta.grade);
                     }
                 }

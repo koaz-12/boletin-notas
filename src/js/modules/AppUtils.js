@@ -82,6 +82,8 @@ export const AppUtils = {
     initSchoolYear: () => {
         const y1 = document.getElementById('inputYear1');
         const y2 = document.getElementById('inputYear2');
+        const d1 = document.getElementById('dispYear1');
+        const d2 = document.getElementById('dispYear2');
         if (!y1 || !y2) return;
 
         const now = new Date();
@@ -96,6 +98,10 @@ export const AppUtils = {
             y1.value = shortYear - 1;
             y2.value = shortYear;
         }
+        
+        // Sync to PDF display tags
+        if (d1) d1.innerText = y1.value;
+        if (d2) d2.innerText = y2.value;
     },
 
     // Tab Navigation Helper
