@@ -20,6 +20,7 @@ export const StudentManager = {
                     return;
                 }
 
+                store.takeSnapshot(); // Snapshot before creating a new student
                 store.loadStudent(name, false); // State will auto-create, delay UI update
 
                 // Auto-fill Nombres/Apellidos locally using Excel import logic
@@ -74,6 +75,7 @@ export const StudentManager = {
             "Estás a punto de ELIMINAR TODOS los estudiantes.\nEsta acción es irreversible.\n¿Estás seguro?",
             () => {
                 // Reset Store to truly empty
+                store.takeSnapshot(); // Snapshot before wiping all data
                 store.setRoster([], {});
                 store.getState().currentStudent = null;
                 store.notify();

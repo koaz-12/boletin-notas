@@ -240,6 +240,17 @@ export const Events = {
             }
         });
 
+        // --- PRE-EDIT SNAPSHOTS (For fields that save on 'input') ---
+        document.addEventListener('focusin', (e) => {
+            const target = e.target;
+            if (!target || !target.dataset) return;
+            // For fields that update continuously on `input`, we capture origin state on focus.
+            const liveActions = ['updateObservation', 'updateAttendance'];
+            if (liveActions.includes(target.dataset.action)) {
+                store.takeSnapshot();
+            }
+        });
+
         // 3. Change Events
         document.addEventListener('change', (e) => {
             const target = e.target;
@@ -333,8 +344,8 @@ export const Events = {
             }
 
             // --- UNDO / REDO SNAPSHOT ---
-            // Take a snapshot right before modifying grades or observations
-            const trackedActions = ['updateGrade', 'updateRecovery', 'updateObservation', 'updateAttendance'];
+            // Take a snapshot right before modifying grades or recovery (since they process on change)
+            const trackedActions = ['updateGrade', 'updateRecovery'];
             if (trackedActions.includes(target.dataset.action)) {
                 store.takeSnapshot();
             }
@@ -644,13 +655,18 @@ export const Events = {
                     document.activeElement.blur();
                 }
                 e.preventDefault();
-                if (store.undo()) Toast.info("Deshacer (Undo)");
+                // Use setTimeout to ensure blur's change event (and its isInternalGridUpdate reset) completes first
+                setTimeout(() => {
+                    if (store.undo()) Toast.info("Deshacer (Undo)");
+                }, 20);
             }
 
             // Check for Ctrl+Y or Ctrl+Shift+Z
             if ((e.ctrlKey && (e.key === 'y' || e.key === 'Y')) || (e.ctrlKey && e.shiftKey && (e.key === 'z' || e.key === 'Z'))) {
                 e.preventDefault();
-                if (store.redo()) Toast.info("Rehacer (Redo)");
+                setTimeout(() => {
+                    if (store.redo()) Toast.info("Rehacer (Redo)");
+                }, 20);
             }
         });
 
