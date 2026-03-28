@@ -243,11 +243,24 @@ export const Events = {
         // --- PRE-EDIT SNAPSHOTS (For fields that save on 'input') ---
         document.addEventListener('focusin', (e) => {
             const target = e.target;
-            if (!target || !target.dataset) return;
-            // For fields that update continuously on `input`, we capture origin state on focus.
-            const liveActions = ['updateObservation', 'updateAttendance'];
-            if (liveActions.includes(target.dataset.action)) {
-                store.takeSnapshot();
+            if (!target) return;
+            
+            // 1. Live Data Grids
+            if (target.dataset) {
+                const liveActions = ['updateObservation', 'updateAttendance'];
+                if (liveActions.includes(target.dataset.action)) {
+                    store.takeSnapshot();
+                    return;
+                }
+            }
+
+            // 2. Datos Generales Inputs
+            if (target.id && target.id.startsWith('input')) {
+                const idPart = target.id.replace('input', '');
+                const validGeneralFields = ['Centro', 'Codigo', 'Tanda', 'Telefono', 'Regional', 'Distrito', 'Provincia', 'Municipio', 'Docente', 'Seccion', 'Nombres', 'Apellidos', 'ID', 'Orden', 'ObsGeneral'];
+                if (validGeneralFields.includes(idPart)) {
+                    store.takeSnapshot();
+                }
             }
         });
 
@@ -344,8 +357,8 @@ export const Events = {
             }
 
             // --- UNDO / REDO SNAPSHOT ---
-            // Take a snapshot right before modifying grades or recovery (since they process on change)
-            const trackedActions = ['updateGrade', 'updateRecovery'];
+            // Take a snapshot right before modifying grades/recovery or dropdown statuses
+            const trackedActions = ['updateGrade', 'updateRecovery', 'updateStatus', 'updateFinalCondition'];
             if (trackedActions.includes(target.dataset.action)) {
                 store.takeSnapshot();
             }

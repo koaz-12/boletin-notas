@@ -198,7 +198,8 @@ export class AppState {
         const snapStr = JSON.stringify({
             roster: this.state.roster,
             studentList: this.state.studentList,
-            currentStudent: this.state.currentStudent
+            currentStudent: this.state.currentStudent,
+            schoolData: this.state.schoolData
         });
 
         // Don't push if it's identical to the last one
@@ -219,7 +220,8 @@ export class AppState {
         const currentSnapStr = JSON.stringify({
             roster: this.state.roster,
             studentList: this.state.studentList,
-            currentStudent: this.state.currentStudent
+            currentStudent: this.state.currentStudent,
+            schoolData: this.state.schoolData
         });
 
         const prevSnapStr = this.undoStack.pop();
@@ -238,7 +240,8 @@ export class AppState {
         const currentSnapStr = JSON.stringify({
             roster: this.state.roster,
             studentList: this.state.studentList,
-            currentStudent: this.state.currentStudent
+            currentStudent: this.state.currentStudent,
+            schoolData: this.state.schoolData
         });
 
         const nextSnapStr = this.redoStack.pop();
@@ -252,6 +255,9 @@ export class AppState {
         const snap = JSON.parse(snapStr);
         this.state.roster = snap.roster;
         this.state.studentList = snap.studentList;
+        if (snap.schoolData) {
+            this.state.schoolData = snap.schoolData;
+        }
 
         if (snap.currentStudent && this.state.studentList.includes(snap.currentStudent)) {
             this.loadStudent(snap.currentStudent, false);
