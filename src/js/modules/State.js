@@ -300,10 +300,12 @@ export class AppState {
 
         // Reset current if we deleted the current one
         if (this.state.currentStudent === studentName) {
-            this.state.currentStudent = this.state.studentList.length > 0 ? this.state.studentList[0] : "";
+            const next = this.state.studentList.length > 0 ? this.state.studentList[0] : null;
+            this.loadStudent(next, false);
+        } else {
+            this.saveCurrentStudent(); // Save State
         }
 
-        this.saveCurrentStudent(); // Save State
         this.notify();
         return true;
     }
@@ -716,7 +718,30 @@ export class AppState {
         return () => { this.listeners = this.listeners.filter(l => l !== listener); };
     }
 
+    sortStudentList() {
+        if (!this.state.studentList || this.state.studentList.length <= 1) return;
+        
+        this.state.studentList.sort((nameA, nameB) => {
+            const getOrder = (name) => {
+                const rosterInfo = this.state.roster[name] && this.state.roster[name].studentInfo;
+                if (!rosterInfo || rosterInfo.order === "" || rosterInfo.order === undefined) return Infinity;
+                const num = parseInt(rosterInfo.order, 10);
+                return isNaN(num) ? Infinity : num;
+            };
+            
+            const orderA = getOrder(nameA);
+            const orderB = getOrder(nameB);
+            
+            if (orderA !== orderB) {
+                return orderA - orderB;
+            }
+            
+            return nameA.localeCompare(nameB);
+        });
+    }
+
     notify() {
+        this.sortStudentList();
         this.listeners.forEach(listener => listener(this.state));
         this.debouncedSave();
     }

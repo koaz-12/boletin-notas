@@ -139,6 +139,7 @@ export const StudentManager = {
                         if (full) display = full;
                     }
                     if (opt.innerText !== display) opt.innerText = display;
+                    if (opt.value !== nameKey) opt.value = nameKey; // Fix for list reordering
                 }
             });
 
