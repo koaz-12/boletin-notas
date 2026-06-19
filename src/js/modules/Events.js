@@ -99,6 +99,9 @@ export const Events = {
                 // Condition
                 const condInput = document.getElementById('inputCondicion');
                 if (condInput) condInput.value = state.finalCondition || '';
+
+                // Situacion Final (Promovido, Aplazado, Repitente)
+                AppUI.updateStatusInputs(state);
             }
 
             AppUI.renderOverlays(state.subjects);
