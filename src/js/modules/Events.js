@@ -295,6 +295,15 @@ export const Events = {
             if (target.id === 'pdfUpload') {
                 PDFManager.handleUpload(target);
             }
+            // Fallback for production index.html that still has templateSelector
+            if (target.id === 'templateSelector') {
+                const pdfPath = `assets/templates/${target.value}`;
+                if (typeof PDFManager.loadPdfFromUrl === 'function') {
+                    PDFManager.loadPdfFromUrl(pdfPath);
+                } else if (typeof PDFManager.loadTemplate === 'function') {
+                    PDFManager.loadTemplate(target.value);
+                }
+            }
             if (target.id === 'pdfNameFormat') {
                 store.updateSettings({ pdfNameFormat: target.value });
             }
@@ -440,6 +449,33 @@ export const Events = {
         // 4. Click Events
         document.addEventListener('click', (e) => {
             const target = e.target;
+
+            // Magic Click for Final Status Inputs (Promovido, Aplazado, Repitente)
+            if (target.dataset.action === 'updateStatus') {
+                const currentVal = target.value;
+                let newVal = "X";
+                if (currentVal === "" || currentVal === null) {
+                    newVal = "X";
+                } else if (currentVal === "X" || currentVal === "x") {
+                    newVal = "✔️";
+                } else {
+                    newVal = "";
+                }
+                target.value = newVal;
+                
+                // Set the current field
+                store.updateStudentStatus(target.dataset.field, newVal);
+
+                // Mutually exclusive: Clear the others if this one is selected
+                if (newVal !== "") {
+                    const fields = ['promoted', 'postponed', 'repeater'];
+                    fields.forEach(f => {
+                        if (f !== target.dataset.field) {
+                            store.updateStudentStatus(f, "");
+                        }
+                    });
+                }
+            }
 
             if (target.id === 'btnFactoryReset') {
                 if (confirm('⚠️ ¿Estás seguro de que quieres BORRAR TODOS LOS DATOS?')) {
