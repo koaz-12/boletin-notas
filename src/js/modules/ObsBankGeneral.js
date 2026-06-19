@@ -203,22 +203,24 @@ export const ObsBankGeneral = {
         }
     },
 
+    activeTargetInput: null,
+
     insertPhrase: function (phrase) {
-        const textarea = document.getElementById('inputObsGeneral');
-        if (!textarea) {
-            Toast.warning("No se encontró el campo de observaciones.");
+        const target = this.activeTargetInput;
+        if (!target) {
+            Toast.warning("No se encontró el campo destino.");
             return;
         }
 
-        let current = textarea.value.trim();
+        let current = target.value.trim();
         if (current.length > 0 && !current.endsWith('.')) current += ".";
 
         const separator = current.length > 0 ? " " : "";
-        textarea.value = current + separator + phrase;
+        target.value = current + separator + phrase;
 
         // Trigger input event to save state
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
-        Toast.show("Observación insertada", "success");
+        target.dispatchEvent(new Event('input', { bubbles: true }));
+        Toast.show("Texto insertado", "success");
     },
 
     addPhrase: function () {
@@ -232,41 +234,53 @@ export const ObsBankGeneral = {
         this.saveBank();
         this.switchTab(this.activeCategory);
         input.value = "";
-        Toast.success("Observación añadida al banco.");
+        Toast.success("Frase añadida al banco.");
     },
 
     editPhrase: function (category, index) {
         const oldText = this.userBank[category][index];
-        const newText = prompt("Editar observación:", oldText);
+        const newText = prompt("Editar frase:", oldText);
         if (newText && newText.trim() !== "") {
             this.userBank[category][index] = newText.trim();
             this.saveBank();
             this.switchTab(category);
-            Toast.success("Observación actualizada");
+            Toast.success("Frase actualizada");
         }
     },
 
     deletePhrase: function (category, index) {
-        if (confirm("¿Eliminar esta observación?")) {
+        if (confirm("¿Eliminar esta frase?")) {
             this.userBank[category].splice(index, 1);
             this.saveBank();
             this.switchTab(category);
-            Toast.info("Observación eliminada");
+            Toast.info("Frase eliminada");
         }
     },
 
     bindEvents: function () {
-        // Open button
-        const btn = document.getElementById('btn-open-obs-bank');
-        if (btn) {
-            btn.onclick = () => this.togglePanel(true);
+        // Open button for General Observations
+        const btnObs = document.getElementById('btn-open-obs-bank');
+        if (btnObs) {
+            btnObs.onclick = () => {
+                this.activeTargetInput = document.getElementById('inputObsGeneral');
+                this.togglePanel(true);
+            };
+        }
+
+        // Open button for Final Condition
+        const btnCond = document.getElementById('btn-open-cond-bank');
+        if (btnCond) {
+            btnCond.onclick = () => {
+                this.activeTargetInput = document.getElementById('inputCondicion');
+                this.togglePanel(true);
+            };
         }
 
         // Close on click outside
         document.addEventListener('click', (e) => {
             const panel = document.getElementById('obs-general-bank-panel');
             if (panel && !panel.classList.contains('translate-x-full')) {
-                if (!panel.contains(e.target) && !e.target.closest('#btn-open-obs-bank')) {
+                if (!panel.contains(e.target) && !e.target.closest('#btn-open-obs-bank') && !e.target.closest('#btn-open-cond-bank')) {
                     this.togglePanel(false);
                 }
             }
