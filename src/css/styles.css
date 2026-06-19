@@ -355,6 +355,12 @@ body.edit-mode-active .draggable-field:hover::after {
     display: none !important;
 }
 
+/* Utilidades para salto de página en html2pdf.js (Modo Pantalla/Off-screen) */
+.pdf-page-break {
+    page-break-after: always !important;
+    break-after: page !important;
+}
+
 /* IMPRESIÓN NATIVA (Para Guardar como PDF) */
 @media print {
     @page {
@@ -370,6 +376,23 @@ body.edit-mode-active .draggable-field:hover::after {
         print-color-adjust: exact !important;
     }
 
+    body > *:not(.a4-wrapper):not(#batch-print-container) {
+        display: none !important;
+    }
+
+    .a4-wrapper {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        overflow: visible !important;
+    }
+
+    #report-container {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+    }
+
     .no-print {
         display: none !important;
     }
@@ -379,28 +402,29 @@ body.edit-mode-active .draggable-field:hover::after {
     }
 
     .a4-page {
-        margin: 0;
-        box-shadow: none;
-        page-break-after: always;
-        width: 297mm;
-        /* Explicit A4 width */
-        height: 210mm;
-        /* Explicit A4 height */
-        overflow: hidden;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        width: 297mm !important;
+        height: 210mm !important;
+        max-height: 210mm !important;
+        overflow: hidden !important;
         background: white !important;
-        /* Garantiza fondo blanco en todos los browsers */
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-        /* Firefox */
         border: none !important;
-        position: relative;
-        /* Ensure absolute children work */
+        position: relative !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        /* Escala del 96% para dejar un margen blanco de seguridad y evitar recortes del hardware de impresión */
+        transform: scale(0.96) !important;
+        transform-origin: top center !important;
     }
 
-    .a4-page:last-of-type {
-        page-break-after: auto !important;
-        break-after: auto !important;
+    /* Page break only before subsequent pages to prevent trailing blank pages */
+    .a4-page + .a4-page {
+        page-break-before: always !important;
+        break-before: page !important;
     }
 
     /* Asegurar que el canvas de fondo se imprima */
@@ -420,10 +444,6 @@ body.edit-mode-active .draggable-field:hover::after {
         z-index: 10 !important;
     }
 
-    #report-container {
-        width: 100%;
-    }
-
     /* Batch Print: hide the live report container so it doesn't bleed extra pages */
     #report-container.hidden {
         display: none !important;
@@ -433,4 +453,59 @@ body.edit-mode-active .draggable-field:hover::after {
     #batch-print-container {
         display: block !important;
     }
+}
+
+/* =========================================
+   PREMIUM UI UPGRADES (GLASSMORPHISM & ANIMATIONS)
+   ========================================= */
+
+body {
+    font-family: 'Inter', sans-serif !important;
+    background-color: #f0f4f8 !important; /* Soft premium background */
+}
+
+/* Glassmorphism for main headers and containers */
+#main-header-container, #sections-bar, .bg-white.shadow-lg {
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04) !important;
+    border-radius: 12px;
+}
+
+/* Modals premium styling */
+.fixed.inset-0 > .bg-white {
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Micro-animations for all buttons and interactive elements */
+button, .cursor-pointer, .hover-scale {
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease, background-color 0.2s ease !important;
+}
+
+button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+}
+
+button:active:not(:disabled) {
+    transform: translateY(0) scale(0.96) !important;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Specific fix for floating buttons to not jump weirdly */
+.fixed.bottom-6.right-6 button {
+    border-radius: 9999px; /* keep them circular */
+}
+
+/* Smooth input focus */
+input:focus, select:focus, textarea:focus {
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
 }
