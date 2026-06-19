@@ -202,6 +202,21 @@ export const ExcelImport = {
             // ID column is optional. The critical identifier is the Student Name column.
             if (colName !== -1) {
                 headerRowIndex = i;
+                
+                // Extra scan: Sometimes attendance headers are 1 row above or below due to merged cells
+                const scanRowForAtt = (rIdx) => {
+                    if (rIdx < 0 || rIdx >= rows.length || !rows[rIdx]) return;
+                    for (let c = 0; c < rows[rIdx].length; c++) {
+                        const val = String(rows[rIdx][c] || "").trim().toLowerCase();
+                        if (colAtt === -1 && val.includes("%") && val.includes("asis")) colAtt = c;
+                        if (colAbs === -1 && val.includes("%") && (val.includes("aus") || val.includes("inasis"))) colAbs = c;
+                    }
+                };
+                
+                scanRowForAtt(i - 1);
+                scanRowForAtt(i + 1);
+                scanRowForAtt(i + 2); // Just in case
+                
                 break;
             }
         }
