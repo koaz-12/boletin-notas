@@ -237,12 +237,70 @@ export const ImportManager = {
         currentIdMap.clear(); // Reset map
 
         batchData.forEach((item, index) => {
-            // SPECIAL HANDLER: "Datos" Sheet -> Extract IDs
+            // SPECIAL HANDLER: "Datos" Sheet -> Extract IDs + Attendance
             if (item.sheetName && item.sheetName.toLowerCase().trim() === 'datos') {
                 const idMap = ExcelImport.extractIDs(item.rows);
                 // Merge into global map
                 idMap.forEach((val, key) => currentIdMap.set(key, val));
                 Toast.info(`IDs cargados de hoja 'Datos' (${idMap.size} encontrados).`);
+
+                // ALSO extract attendance from this sheet (columns D=3 and E=4)
+                // Find the header row (row with "Nombre" or similar)
+                const cfg = ExcelImport.getConfig();
+                let attHeaderRow = -1;
+                let colName = -1, colAtt = 3, colAbs = 4; // Default to columns 4 & 5 (index 3 & 4)
+
+                for (let r = 0; r < Math.min(item.rows.length, 30); r++) {
+                    const row = item.rows[r];
+                    if (!row) continue;
+                    for (let c = 0; c < Math.max(row.length, 10); c++) {
+                        const val = String(row[c] || "").trim().toLowerCase();
+                        if (val.includes("nombre") || val.includes("estudiante") || val.includes("alumno") || val.includes("apellido")) {
+                            colName = c;
+                            attHeaderRow = r;
+                        }
+                        // Also try to find attendance headers dynamically
+                        if (val.includes("asis")) colAtt = c;
+                        if (val.includes("aus") || val.includes("inasis")) colAbs = c;
+                    }
+                    if (colName !== -1) break;
+                }
+
+                if (attHeaderRow !== -1) {
+                    let attCount = 0;
+                    for (let r = attHeaderRow + 1; r < item.rows.length; r++) {
+                        const row = item.rows[r];
+                        if (!row || !row[colName]) continue;
+                        const studentName = String(row[colName]).trim();
+                        const attVal = row[colAtt];
+                        const absVal = row[colAbs];
+
+                        // Find in currentMasterList and merge
+                        const match = currentMasterList.find(s => {
+                            const n = ExcelImport.normalizeName(s.name);
+                            const t = ExcelImport.normalizeName(studentName);
+                            return n === t;
+                        });
+
+                        if (match) {
+                            if (attVal !== undefined && attVal !== null && attVal !== "") match.attPct = attVal;
+                            if (absVal !== undefined && absVal !== null && absVal !== "") match.absPct = absVal;
+                            attCount++;
+                        } else {
+                            // Student exists in Datos but not in masterList yet — add attendance data
+                            currentMasterList.push({
+                                name: studentName,
+                                attPct: attVal !== undefined ? attVal : "",
+                                absPct: absVal !== undefined ? absVal : ""
+                            });
+                            attCount++;
+                        }
+                    }
+                    if (attCount > 0) {
+                        Toast.info(`📊 Asistencia cargada de hoja 'Datos' (${attCount} estudiantes).`);
+                    }
+                }
+
                 return; // Skip rendering this sheet row
             }
 
