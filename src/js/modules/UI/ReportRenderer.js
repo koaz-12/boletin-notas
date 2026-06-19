@@ -136,6 +136,9 @@ export const ReportRenderer = {
     },
 
     toggleOverlayClass: function (enabled) {
+        // Toggle the body class to trigger official backgrounds vs templates visibility in CSS
+        document.body.classList.toggle('overlay-active', enabled);
+
         // Shared logic: In Overlay Mode, we want "Transparent" (Invisible) borders/bg for "Paper" view.
         // In Edit Mode (unchecked), we want "Visible" borders/bg.
 
@@ -196,8 +199,8 @@ function renderCommonOverlays(isAdvanced, container) {
     // Defaulting to below P4 for now.
     const totalTop = obsTop + (4 * 25);
     // Unconditionally ensure fields exist (Defensive)
-    const tPerc = att.total?.perc || '';
-    const tPercAbs = att.total?.perc_abs || '';
+    const tPerc = att.total?.perc ? att.total.perc + '%' : '';
+    const tPercAbs = att.total?.perc_abs ? att.total.perc_abs + '%' : '';
 
     ensure('overlay_att_total_perc', tPerc, totalTop, attLeftStart + 80, 40, 20, false, 'obs', 'center');
     ensure('overlay_att_total_perc_abs', tPercAbs, totalTop, attLeftStart + 120, 40, 20, false, 'obs', 'center');
