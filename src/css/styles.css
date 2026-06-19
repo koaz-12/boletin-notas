@@ -384,8 +384,8 @@ body.edit-mode-active .draggable-field:hover::after {
         padding: 0 !important;
         box-shadow: none !important;
         width: 297mm !important;
-        height: 210mm !important;
-        max-height: 210mm !important;
+        height: 209.5mm !important;
+        max-height: 209.5mm !important;
         overflow: hidden !important;
         background: white !important;
         -webkit-print-color-adjust: exact !important;
@@ -394,9 +394,6 @@ body.edit-mode-active .draggable-field:hover::after {
         position: relative !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
-        /* Escala del 96% para dejar un margen blanco de seguridad y evitar recortes del hardware de impresión */
-        transform: scale(0.96) !important;
-        transform-origin: top center !important;
     }
 
     /* Asegurar que el canvas de fondo se imprima */
