@@ -9,6 +9,7 @@ import { AppUI } from './AppUI.js';
 
 let currentBatchData = [];
 let currentIdMap = new Map();
+let currentMasterList = [];
 
 export const ImportManager = {
     // Getter for Batch Data (if needed)
@@ -206,7 +207,7 @@ export const ImportManager = {
 
     // Render Import Modal
     renderImportModal: (masterList, batchData) => {
-        // Populate Student Select
+        currentMasterList = masterList || [];
         const studentSelect = document.getElementById('importStudentSelect');
         studentSelect.innerHTML = ''; // Clear
 
@@ -489,7 +490,7 @@ export const ImportManager = {
                     });
 
                     // IMPORT ATTENDANCE FROM DATOS SHEET
-                    masterList.forEach(s => {
+                    currentMasterList.forEach(s => {
                         const name = s.name;
                         if (newRoster[name]) {
                             if (!newRoster[name].attendance.total) newRoster[name].attendance.total = { pres: "", abs: "", perc: "", perc_abs: "" };
@@ -662,7 +663,7 @@ export const ImportManager = {
                     }
 
                     // IMPORT ATTENDANCE FROM DATOS SHEET (SINGLE)
-                    const sData = masterList.find(s => s.name === studentName);
+                    const sData = currentMasterList.find(s => s.name === studentName);
                     if (sData) {
                         if (!newRoster[studentName].attendance.total) newRoster[studentName].attendance.total = { pres: "", abs: "", perc: "", perc_abs: "" };
                         
