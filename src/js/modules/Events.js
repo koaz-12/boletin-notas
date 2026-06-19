@@ -12,8 +12,6 @@ import { ExcelImport } from './ExcelImport.js';
 import { GoogleSheetsSync } from './GoogleSheetsSync.js';
 import { PDFManager } from './PDF.js';
 import { AppUtils } from './AppUtils.js';
-import { ShareManager } from './ShareManager.js';
-import { WordExportManager } from './WordExportManager.js';
 
 // Interaction Manager Instance (Needs Store)
 const interactManager = new InteractionManager(store);
@@ -22,7 +20,6 @@ export const Events = {
     init: () => {
         // Version Check
         console.log("Events v3.1 Logic");
-        WordExportManager.init();
 
         let lastRenderedStudent = null;
         let lastRenderedGrade = null; // Track Grade Changes
@@ -444,33 +441,6 @@ export const Events = {
         document.addEventListener('click', (e) => {
             const target = e.target;
 
-            // Magic Click for Final Status Inputs (Promovido, Aplazado, Repitente)
-            if (target.dataset.action === 'updateStatus') {
-                const currentVal = target.value;
-                let newVal = "X";
-                if (currentVal === "" || currentVal === null) {
-                    newVal = "X";
-                } else if (currentVal === "X" || currentVal === "x") {
-                    newVal = "✔️";
-                } else {
-                    newVal = "";
-                }
-                target.value = newVal;
-                
-                // Set the current field
-                store.updateStudentStatus(target.dataset.field, newVal);
-
-                // Mutually exclusive: Clear the others if this one is selected
-                if (newVal !== "") {
-                    const fields = ['promoted', 'postponed', 'repeater'];
-                    fields.forEach(f => {
-                        if (f !== target.dataset.field) {
-                            store.updateStudentStatus(f, "");
-                        }
-                    });
-                }
-            }
-
             if (target.id === 'btnFactoryReset') {
                 if (confirm('⚠️ ¿Estás seguro de que quieres BORRAR TODOS LOS DATOS?')) {
                     store.clearLocalStorage();
@@ -554,36 +524,11 @@ export const Events = {
                 target.classList.toggle('bg-gray-300', isBold);
             }
 
+            // Project & PDF
             if (target.closest('#btnExportProject')) Events.exportProject();
             if (target.closest('#btnDownloadCurrent')) PDFManager.downloadCurrent();
             if (target.closest('#btnPrintBatch')) PDFManager.generateBatchPDF();
             if (target.closest('#btnZipBatch')) PDFManager.generateBatchZip();
-            if (target.closest('#btnExportWordIndividual')) WordExportManager.openModal('individual');
-            if (target.closest('#btnExportWordBatch')) WordExportManager.openModal('batch');
-            if (target.closest('#btnShareImage')) ShareManager.openShareModal();
-
-            if (target.closest('#btnViewCF')) {
-                Events.renderViewCF();
-            }
-
-            if (target.closest('#btnCloseViewCF')) {
-                document.getElementById('modalViewCF').classList.add('hidden');
-            }
-
-            if (target.closest('#btnViewCFPrev')) {
-                Events.navigateViewCF(-1);
-            }
-
-            if (target.closest('#btnViewCFNext')) {
-                Events.navigateViewCF(1);
-            }
-
-            // Share Modal Controls
-            if (target.closest('#btnCloseShareModal') || target.closest('#btnCancelShareModal')) ShareManager.closeModal();
-            if (target.closest('#btnShareMobile')) ShareManager.shareMobile();
-            if (target.closest('#btnShareCopy1')) ShareManager.copyToClipboard(1);
-            if (target.closest('#btnShareCopy2')) ShareManager.copyToClipboard(2);
-            if (target.closest('#btnShareDownload')) ShareManager.downloadPNG();
 
             // Google Sheets Sync
             if (target.closest('#btnSyncGoogleSheet')) {
@@ -684,11 +629,11 @@ export const Events = {
                 document.body.classList.toggle('edit-mode-active', newState);
                 if (newState) {
                     btn.classList.add('bg-red-600', 'text-white', 'ring-4', 'ring-red-300');
-                    btn.classList.remove('bg-gray-100', 'text-gray-600');
+                    btn.classList.remove('bg-white', 'text-gray-600');
                     Toast.info("✏️ MODO EDICIÓN: Arrastra las casillas.");
                 } else {
                     btn.classList.remove('bg-red-600', 'text-white', 'ring-4', 'ring-red-300');
-                    btn.classList.add('bg-gray-100', 'text-gray-600');
+                    btn.classList.add('bg-white', 'text-gray-600');
                     Toast.info("Modo Lectura.");
                 }
             }
@@ -703,10 +648,11 @@ export const Events = {
 
                 if (newState) {
                     btn.classList.add('bg-blue-600', 'text-white', 'ring-4', 'ring-blue-300');
-                    btn.classList.remove('bg-blue-100', 'text-blue-600', 'border-blue-200');
+                    btn.classList.remove('bg-white', 'text-blue-600', 'border-blue-700');
+                    // Reset border style as needed
                 } else {
                     btn.classList.remove('bg-blue-600', 'text-white', 'ring-4', 'ring-blue-300');
-                    btn.classList.add('bg-blue-100', 'text-blue-600', 'border-blue-200');
+                    btn.classList.add('bg-white', 'text-blue-600', 'border', 'border-blue-700');
                 }
             }
         });
@@ -892,72 +838,6 @@ export const Events = {
             console.error("Excel Preview Error:", err);
             Toast.error("Error leyendo el archivo Excel: " + err.message);
             if (inputEl) inputEl.value = '';
-        }
-    },
-
-    renderViewCF() {
-        const s = store.getState();
-        if (!s.currentStudent || !s.roster[s.currentStudent]) {
-            Toast.error("Seleccione un estudiante primero.");
-            return;
-        }
-
-        const studentData = s.roster[s.currentStudent];
-        document.getElementById('lblViewCFStudentName').textContent = s.currentStudent;
-
-        const orderedKeywords = [
-            "Lengua Espa", "Matem", "Natur", "Social", "Formaci", "Ingl", "Art", "Física", "Fsica"
-        ];
-        
-        const displayNames = [
-            "Lengua Española", "Matemática", "Ciencias Naturales", "Ciencias Sociales",
-            "Form. Int. Humana y Religiosa", "Inglés", "Educación Artística", "Educación Física", ""
-        ];
-
-        let html = "";
-        const addedKeywords = new Set();
-
-        orderedKeywords.forEach((keyword, idx) => {
-            if (keyword === "Fsica" && addedKeywords.has("Física")) return;
-            
-            const foundSub = studentData.subjects ? studentData.subjects.find(s => s.name && s.name.includes(keyword)) : null;
-            const displayName = displayNames[idx];
-
-            if (foundSub) {
-                const finalGrade = foundSub.final !== undefined && foundSub.final !== "" ? foundSub.final : "-";
-                html += `<div class="flex justify-between border-b border-gray-200 py-1">
-                            <span class="text-gray-600">${displayName}</span>
-                            <span class="font-bold text-black text-xl w-12 text-right">${finalGrade}</span>
-                         </div>`;
-                addedKeywords.add(keyword);
-            } else if (keyword !== "Fsica") {
-                html += `<div class="flex justify-between border-b border-gray-200 py-1">
-                            <span class="text-gray-600">${displayName}</span>
-                            <span class="font-bold text-gray-400 text-xl w-12 text-right">-</span>
-                         </div>`;
-            }
-        });
-
-        document.getElementById('viewCFContent').innerHTML = html;
-        document.getElementById('modalViewCF').classList.remove('hidden');
-    },
-
-    navigateViewCF(direction) {
-        const s = store.getState();
-        const currentIndex = s.studentList.indexOf(s.currentStudent);
-        if (currentIndex === -1) return;
-
-        let newIndex = currentIndex + direction;
-        if (newIndex < 0) newIndex = s.studentList.length - 1;
-        if (newIndex >= s.studentList.length) newIndex = 0;
-
-        // Use the native system to fully switch student context (saves current, loads new)
-        try {
-            store.loadStudent(s.studentList[newIndex], true);
-            // Render the modal again with the new student's data
-            this.renderViewCF();
-        } catch (err) {
-            console.error(err);
         }
     }
 };
