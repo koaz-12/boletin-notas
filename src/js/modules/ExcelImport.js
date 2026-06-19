@@ -195,8 +195,8 @@ export const ExcelImport = {
                 if (val.includes("nombre") || val.includes("estudiante") || val.includes("alumno") || val.includes("apellido") || val === "nombres y apellidos") colName = c;
                 if (val === "id" || val.includes("id estudiante")) colID = c;
                 if (val === "no." || val === "no" || val.includes("número") || val === "#") colNo = c;
-                if (val.includes("%") && val.includes("asis")) colAtt = c;
-                if (val.includes("%") && (val.includes("aus") || val.includes("inasis"))) colAbs = c;
+                if (val.includes("asis")) colAtt = c;
+                if (val.includes("aus") || val.includes("inasis")) colAbs = c;
             }
 
             // ID column is optional. The critical identifier is the Student Name column.
@@ -208,8 +208,8 @@ export const ExcelImport = {
                     if (rIdx < 0 || rIdx >= rows.length || !rows[rIdx]) return;
                     for (let c = 0; c < rows[rIdx].length; c++) {
                         const val = String(rows[rIdx][c] || "").trim().toLowerCase();
-                        if (colAtt === -1 && val.includes("%") && val.includes("asis")) colAtt = c;
-                        if (colAbs === -1 && val.includes("%") && (val.includes("aus") || val.includes("inasis"))) colAbs = c;
+                        if (colAtt === -1 && val.includes("asis")) colAtt = c;
+                        if (colAbs === -1 && (val.includes("aus") || val.includes("inasis"))) colAbs = c;
                     }
                 };
                 
