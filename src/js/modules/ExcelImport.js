@@ -203,19 +203,15 @@ export const ExcelImport = {
             if (colName !== -1) {
                 headerRowIndex = i;
                 
-                // Extra scan: Sometimes attendance headers are 1 row above or below due to merged cells
-                const scanRowForAtt = (rIdx) => {
-                    if (rIdx < 0 || rIdx >= rows.length || !rows[rIdx]) return;
+                // Extra scan: Scan ALL rows from 0 to headerRowIndex + 3 for attendance headers
+                for (let rIdx = 0; rIdx <= i + 3; rIdx++) {
+                    if (rIdx >= rows.length || !rows[rIdx]) continue;
                     for (let c = 0; c < rows[rIdx].length; c++) {
                         const val = String(rows[rIdx][c] || "").trim().toLowerCase();
                         if (colAtt === -1 && val.includes("asis")) colAtt = c;
                         if (colAbs === -1 && (val.includes("aus") || val.includes("inasis"))) colAbs = c;
                     }
-                };
-                
-                scanRowForAtt(i - 1);
-                scanRowForAtt(i + 1);
-                scanRowForAtt(i + 2); // Just in case
+                }
                 
                 break;
             }
