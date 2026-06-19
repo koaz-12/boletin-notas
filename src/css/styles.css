@@ -357,6 +357,12 @@ body.edit-mode-active .draggable-field:hover::after {
 
 /* IMPRESIÓN NATIVA (Para Guardar como PDF) */
 @media print {
+    .a4-wrapper {
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+    }
+
     @page {
         size: A4 landscape;
         margin: 0;
