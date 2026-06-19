@@ -488,6 +488,31 @@ export const ImportManager = {
                         }
                     });
 
+                    // IMPORT ATTENDANCE FROM DATOS SHEET
+                    masterList.forEach(s => {
+                        const name = s.name;
+                        if (newRoster[name]) {
+                            if (!newRoster[name].attendance.total) newRoster[name].attendance.total = { pres: "", abs: "", perc: "", perc_abs: "" };
+                            
+                            const formatPct = (val) => {
+                                if (val === undefined || val === "" || val === null) return "";
+                                let num = parseFloat(val);
+                                if (isNaN(num)) return "";
+                                if (num <= 1 && num > 0) num = Math.round(num * 100);
+                                return num;
+                            };
+
+                            if (s.attPct !== undefined && s.attPct !== "") {
+                                newRoster[name].attendance.total.perc = formatPct(s.attPct);
+                                updatedStudents.add(name);
+                            }
+                            if (s.absPct !== undefined && s.absPct !== "") {
+                                newRoster[name].attendance.total.perc_abs = formatPct(s.absPct);
+                                updatedStudents.add(name);
+                            }
+                        }
+                    });
+
                     // Remove Default 'Estudiante 1' if we imported real students
                     if (updatedStudents.size > 0 && newStudentList.includes("Estudiante 1")) {
                         newStudentList = newStudentList.filter(n => n !== "Estudiante 1");
@@ -634,6 +659,27 @@ export const ImportManager = {
                         if (grades.compFinals[0]) targetSub.competencies[0].final = grades.compFinals[0];
                         if (grades.compFinals[1]) targetSub.competencies[1].final = grades.compFinals[1];
                         if (grades.compFinals[2]) targetSub.competencies[2].final = grades.compFinals[2];
+                    }
+
+                    // IMPORT ATTENDANCE FROM DATOS SHEET (SINGLE)
+                    const sData = masterList.find(s => s.name === studentName);
+                    if (sData) {
+                        if (!newRoster[studentName].attendance.total) newRoster[studentName].attendance.total = { pres: "", abs: "", perc: "", perc_abs: "" };
+                        
+                        const formatPct = (val) => {
+                            if (val === undefined || val === "" || val === null) return "";
+                            let num = parseFloat(val);
+                            if (isNaN(num)) return "";
+                            if (num <= 1 && num > 0) num = Math.round(num * 100);
+                            return num;
+                        };
+
+                        if (sData.attPct !== undefined && sData.attPct !== "") {
+                            newRoster[studentName].attendance.total.perc = formatPct(sData.attPct);
+                        }
+                        if (sData.absPct !== undefined && sData.absPct !== "") {
+                            newRoster[studentName].attendance.total.perc_abs = formatPct(sData.absPct);
+                        }
                     }
 
                     // Save

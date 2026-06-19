@@ -183,7 +183,7 @@ export const ExcelImport = {
         // 2. Find Student Table Headers
         // Look for row containing "Nombres" and "ID"
         let headerRowIndex = -1;
-        let colName = -1, colID = -1, colNo = -1;
+        let colName = -1, colID = -1, colNo = -1, colAtt = -1, colAbs = -1;
 
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
@@ -192,9 +192,11 @@ export const ExcelImport = {
             // Scan columns in this row
             for (let c = 0; c < row.length; c++) {
                 const val = String(row[c] || "").trim().toLowerCase();
-                if (val.includes("nombre") || val.includes("estudiante")) colName = c;
+                if (val.includes("nombre") || val.includes("estudiante") || val.includes("alumno") || val.includes("apellido") || val === "nombres y apellidos") colName = c;
                 if (val === "id" || val.includes("id estudiante")) colID = c;
-                if (val === "no." || val === "no" || val.includes("número")) colNo = c;
+                if (val === "no." || val === "no" || val.includes("número") || val === "#") colNo = c;
+                if (val === "% asistencia" || val === "% asist" || val === "% de asistencia") colAtt = c;
+                if (val === "% ausencia" || val === "% aus" || val === "% inasistencia" || val === "% de ausencia") colAbs = c;
             }
 
             // ID column is optional. The critical identifier is the Student Name column.
@@ -214,7 +216,9 @@ export const ExcelImport = {
                         index: i, // Index in the 'Datos' sheet
                         name: row[colName],
                         id: row[colID] || "",
-                        no: colNo !== -1 ? row[colNo] : ""
+                        no: colNo !== -1 ? row[colNo] : "",
+                        attPct: colAtt !== -1 ? row[colAtt] : "",
+                        absPct: colAbs !== -1 ? row[colAbs] : ""
                     });
                 }
             }
