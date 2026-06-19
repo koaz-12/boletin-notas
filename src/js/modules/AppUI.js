@@ -391,12 +391,17 @@ export const AppUI = {
 
         // Hide/Show Final Condition & Situación Final based on grade (ALWAYS runs)
         const condInput = document.getElementById('inputCondicion');
+        const condHeader = document.getElementById('headerCondicionFinal');
         const condContainer = document.getElementById('containerSituacionFinal');
         const shouldHide = (g <= 2);
 
         if (condInput) {
             if (shouldHide) condInput.classList.add('hidden');
             else condInput.classList.remove('hidden');
+        }
+        if (condHeader) {
+            if (shouldHide) condHeader.classList.add('hidden');
+            else condHeader.classList.remove('hidden');
         }
         if (condContainer) {
             if (shouldHide) condContainer.classList.add('hidden');
