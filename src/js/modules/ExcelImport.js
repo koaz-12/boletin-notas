@@ -238,13 +238,17 @@ export const ExcelImport = {
             for (let i = headerRowIndex + 1; i < rows.length; i++) {
                 const row = rows[i];
                 if (row && row[colName]) {
+                    // Fallback to column 4 (index 3) and 5 (index 4) if headers weren't found
+                    const finalAttCol = colAtt !== -1 ? colAtt : 3;
+                    const finalAbsCol = colAbs !== -1 ? colAbs : 4;
+
                     students.push({
                         index: i, // Index in the 'Datos' sheet
                         name: row[colName],
                         id: row[colID] || "",
                         no: colNo !== -1 ? row[colNo] : "",
-                        attPct: colAtt !== -1 ? row[colAtt] : "",
-                        absPct: colAbs !== -1 ? row[colAbs] : ""
+                        attPct: row[finalAttCol] !== undefined ? row[finalAttCol] : "",
+                        absPct: row[finalAbsCol] !== undefined ? row[finalAbsCol] : ""
                     });
                 }
             }
