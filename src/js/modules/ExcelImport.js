@@ -3,6 +3,8 @@
  * Handles reading grades from Teacher Gradebook (Excel)
  */
 
+import { Toast } from './Toast.js';
+
 export const ExcelImport = {
     // Configuration (Dynamic)
     activeConfig: null,
@@ -206,12 +208,25 @@ export const ExcelImport = {
                 // Extra scan: Scan ALL rows from 0 to headerRowIndex + 3 for attendance headers
                 for (let rIdx = 0; rIdx <= i + 3; rIdx++) {
                     if (rIdx >= rows.length || !rows[rIdx]) continue;
-                    for (let c = 0; c < rows[rIdx].length; c++) {
+                    // Force scan up to column 25 even if row.length is shorter (SheetJS truncates empty cells)
+                    const maxCol = Math.max(rows[rIdx].length, 25);
+                    for (let c = 0; c < maxCol; c++) {
                         const val = String(rows[rIdx][c] || "").trim().toLowerCase();
                         if (colAtt === -1 && val.includes("asis")) colAtt = c;
                         if (colAbs === -1 && (val.includes("aus") || val.includes("inasis"))) colAbs = c;
                     }
                 }
+                
+                // Diagnostic Output
+                console.log(`[Diagnóstico de Importación] Fila Cabecera: ${headerRowIndex}. Columna Nombre: ${colName}. Columna Asistencia: ${colAtt}. Columna Ausencia: ${colAbs}.`);
+                
+                setTimeout(() => {
+                    if (colAtt === -1 || colAbs === -1) {
+                        Toast.warning(`⚠️ Diagnóstico: ¡No se encontró la columna de Asistencia! Asis=${colAtt}, Aus=${colAbs}`);
+                    } else {
+                        Toast.info(`🔍 Diagnóstico: Asistencia detectada en col ${colAtt}, Ausencia en col ${colAbs}`);
+                    }
+                }, 1000);
                 
                 break;
             }
