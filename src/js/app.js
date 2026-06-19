@@ -14,7 +14,6 @@ import { AppUtils } from './modules/AppUtils.js';
 import CloudStorage from './modules/CloudStorage.js';
 import { AuthManager } from './modules/AuthManager.js';
 import { ObservationsManager } from './modules/ObservationsManager.js';
-import { ObsBankGeneral } from './modules/ObsBankGeneral.js';
 import { StudentManager } from './modules/StudentManager.js';
 
 // Global Instances (for debugging or legacy access if needed)
@@ -46,7 +45,6 @@ document.addEventListener('DOMContentLoaded', () => {
     AppUI.init(); // Initialize UI bindings (Floating Controls, etc)
     Events.init();
     ObservationsManager.init();
-    ObsBankGeneral.init();
     StudentManager.initTrashEvents();
 
     // 2. Initial UI Config (Settings)
