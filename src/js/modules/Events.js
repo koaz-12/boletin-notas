@@ -298,6 +298,16 @@ export const Events = {
             if (target.id === 'pdfUpload') {
                 PDFManager.handleUpload(target);
             }
+            // Fallback for production index.html that still has templateSelector
+            if (target.id === 'templateSelector') {
+                const pdfPath = `assets/templates/${target.value}`;
+                // Assuming loadPdfFromUrl or similar exists in PDF.js in production
+                if (typeof PDFManager.loadPdfFromUrl === 'function') {
+                    PDFManager.loadPdfFromUrl(pdfPath);
+                } else if (typeof PDFManager.loadTemplate === 'function') {
+                    PDFManager.loadTemplate(target.value);
+                }
+            }
             if (target.id === 'pdfNameFormat') {
                 store.updateSettings({ pdfNameFormat: target.value });
             }
