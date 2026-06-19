@@ -8,12 +8,12 @@ export const Toast = {
         if (!document.getElementById('toast-container')) {
             const container = document.createElement('div');
             container.id = 'toast-container';
-            container.className = 'fixed top-4 right-4 z-[10001] flex flex-col gap-2 pointer-events-none';
+            container.className = 'fixed top-4 left-4 z-[10001] flex flex-col gap-2 pointer-events-none items-start print:hidden no-print';
             document.body.appendChild(container);
         }
     },
 
-    show(message, type = 'info', duration = 4000) {
+    show(message, type = 'info', duration = 2500) {
         this.init();
         const container = document.getElementById('toast-container');
 
@@ -26,17 +26,17 @@ export const Toast = {
 
         // Create Element
         const toast = document.createElement('div');
-        toast.className = `${bgClass} text-white text-sm px-4 py-3 rounded shadow-lg flex items-center gap-3 transform transition-all duration-300 translate-x-10 opacity-0 pointer-events-auto max-w-sm`;
+        toast.className = `${bgClass} text-white text-xs px-4 py-2 rounded-md shadow-lg flex items-center gap-2 transform transition-all duration-300 -translate-x-10 opacity-0 pointer-events-auto bg-opacity-95 backdrop-blur-sm border border-white border-opacity-10 max-w-sm whitespace-nowrap`;
         toast.innerHTML = `
-            <span class="text-lg">${icon}</span>
-            <div class="flex-1 font-medium leading-tight">${message}</div>
+            <span class="text-xs">${icon}</span>
+            <span class="font-bold tracking-wide">${message}</span>
         `;
 
         container.appendChild(toast);
 
         // Animate In
         requestAnimationFrame(() => {
-            toast.classList.remove('translate-x-10', 'opacity-0');
+            toast.classList.remove('-translate-x-10', 'opacity-0');
             toast.classList.add('translate-x-0', 'opacity-100');
         });
 
@@ -50,7 +50,8 @@ export const Toast = {
     },
 
     dismiss(toast) {
-        toast.classList.add('translate-x-10', 'opacity-0');
+        toast.classList.add('-translate-x-10', 'opacity-0');
+        toast.classList.remove('translate-x-0', 'opacity-100');
         setTimeout(() => {
             if (toast.parentElement) toast.remove();
         }, 300);
