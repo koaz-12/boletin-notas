@@ -558,10 +558,6 @@
                                     <input type="file" id="importLayoutFile" accept=".json" class="hidden">
                                 </label>
                             </div>
-                            <label class="w-full bg-pink-100 text-pink-800 border border-pink-200 rounded px-2 py-1 text-[10px] font-bold hover:bg-pink-200 cursor-pointer text-center flex items-center justify-center gap-1" title="Cargar Firma Docente">
-                                <span class="text-xs">✍️</span> Cargar Firma Docente
-                                <input type="file" id="signatureUpload" accept="image/png, image/jpeg" class="hidden">
-                            </label>
                         </div>
 
                         <div class="border-t pt-2 mb-2">
@@ -1679,6 +1675,11 @@
         <!-- Floating Controls List -->
         <div id="floatingControls"
             class="flex flex-col gap-3 mb-4 hidden transform transition-all duration-300 origin-bottom">
+
+            <label class="bg-pink-100 text-pink-700 w-10 h-10 rounded-full shadow-lg hover:bg-pink-200 hover:scale-105 flex items-center justify-center border border-pink-200 transition-transform cursor-pointer" title="Cargar Firma Docente">
+                <span class="text-lg">✍️</span>
+                <input type="file" id="signatureUpload" accept="image/png, image/jpeg" class="hidden">
+            </label>
 
             <button id="btnDownloadCurrent"
                 class="bg-teal-600 text-white w-10 h-10 rounded-full shadow-lg hover:bg-teal-700 hover:scale-105 flex items-center justify-center border border-teal-700 transition-transform"
