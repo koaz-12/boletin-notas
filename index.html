@@ -544,17 +544,23 @@
                         <h3 class="font-bold text-gray-600 text-xs mb-2">🎨 Diseño y Estilo</h3>
 
                         <!-- Layout Actions -->
-                        <div class="flex gap-1 mb-3">
-                            <button id="btnExportLayout"
-                                class="flex-1 bg-yellow-100 text-yellow-800 border border-yellow-200 rounded px-2 py-1 text-[10px] font-bold hover:bg-yellow-200"
-                                title="Copiar Configuración de Posiciones">
-                                💾 Guardar Diseño
-                            </button>
-                            <label
-                                class="flex-1 bg-gray-100 text-gray-700 border border-gray-200 rounded px-2 py-1 text-[10px] font-bold hover:bg-gray-200 cursor-pointer text-center"
-                                title="Cargar Configuración de Posiciones">
-                                📂 Cargar
-                                <input type="file" id="importLayoutFile" accept=".json" class="hidden">
+                        <div class="flex flex-col gap-1 mb-3">
+                            <div class="flex gap-1">
+                                <button id="btnExportLayout"
+                                    class="flex-1 bg-yellow-100 text-yellow-800 border border-yellow-200 rounded px-2 py-1 text-[10px] font-bold hover:bg-yellow-200"
+                                    title="Copiar Configuración de Posiciones">
+                                    💾 Guardar Diseño
+                                </button>
+                                <label
+                                    class="flex-1 bg-gray-100 text-gray-700 border border-gray-200 rounded px-2 py-1 text-[10px] font-bold hover:bg-gray-200 cursor-pointer text-center"
+                                    title="Cargar Configuración de Posiciones">
+                                    📂 Cargar
+                                    <input type="file" id="importLayoutFile" accept=".json" class="hidden">
+                                </label>
+                            </div>
+                            <label class="w-full bg-pink-100 text-pink-800 border border-pink-200 rounded px-2 py-1 text-[10px] font-bold hover:bg-pink-200 cursor-pointer text-center flex items-center justify-center gap-1" title="Cargar Firma Docente">
+                                <span class="text-xs">✍️</span> Cargar Firma Docente
+                                <input type="file" id="signatureUpload" accept="image/png, image/jpeg" class="hidden">
                             </label>
                         </div>
 
