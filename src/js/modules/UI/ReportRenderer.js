@@ -133,6 +133,36 @@ export const ReportRenderer = {
             // Condición Final
             ensure('final_condition', store.getState().finalCondition || '', startTop + 100, 50, 500, 40, false, 'text', 'left');
         }
+
+        // Render Signature
+        const settings = store.getState().settings;
+        let sigEl = document.getElementById('teacher_signature');
+        if (settings.teacherSignature) {
+            if (!sigEl) {
+                sigEl = document.createElement('div');
+                sigEl.id = 'teacher_signature';
+                sigEl.className = 'draggable-field absolute z-50 overflow-hidden border border-gray-300 hover:border-blue-400 bg-white/80';
+                sigEl.style.resize = 'both';
+                sigEl.style.left = '500px'; 
+                sigEl.style.top = '750px';
+                sigEl.style.width = '150px';
+                sigEl.style.height = '60px';
+                
+                const img = document.createElement('img');
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'contain';
+                img.style.pointerEvents = 'none'; // prevent native image dragging blocking our custom drag
+                sigEl.appendChild(img);
+                
+                container.appendChild(sigEl);
+            }
+            const imgEl = sigEl.querySelector('img');
+            if (imgEl) imgEl.src = settings.teacherSignature;
+        } else {
+            if (sigEl) sigEl.remove();
+        }
+
     },
 
     toggleOverlayClass: function (enabled) {

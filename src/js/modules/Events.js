@@ -15,6 +15,7 @@ import { AppUtils } from './AppUtils.js';
 
 // Interaction Manager Instance (Needs Store)
 const interactManager = new InteractionManager(store);
+window.interactManager = interactManager;
 
 export const Events = {
     init: () => {
@@ -298,6 +299,63 @@ export const Events = {
             if (target.id === 'pdfUpload') {
                 PDFManager.handleUpload(target);
             }
+            if (target.id === 'signatureUpload') {
+                const file = target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const MAX_WIDTH = 300;
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > MAX_WIDTH) {
+                            height = Math.round((height * MAX_WIDTH) / width);
+                            width = MAX_WIDTH;
+                        }
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        // Hacer transparente el fondo blanco
+                        const imageData = ctx.getImageData(0, 0, width, height);
+                        const data = imageData.data;
+                        for (let i = 0; i < data.length; i += 4) {
+                            const r = data[i];
+                            const g = data[i + 1];
+                            const b = data[i + 2];
+                            if (r > 190 && g > 190 && b > 190) {
+                                data[i + 3] = 0;
+                            } else {
+                                data[i] = Math.max(0, r - 50);
+                                data[i+1] = Math.max(0, g - 50);
+                                data[i+2] = Math.max(0, b - 50);
+                            }
+                        }
+                        ctx.putImageData(imageData, 0, 0);
+
+                        const dataUrl = canvas.toDataURL('image/png');
+                        store.updateSettings({ teacherSignature: dataUrl });
+                        
+                        if (window.renderer) {
+                            window.renderer.renderPage1Status();
+                            if (window.interactManager) {
+                                window.interactManager.init();
+                                window.interactManager.loadPositions();
+                            }
+                        }
+                        target.value = '';
+                    };
+                    img.src = ev.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+
             // Fallback for production index.html that still has templateSelector
             if (target.id === 'templateSelector') {
                 const pdfPath = `assets/templates/${target.value}`;
