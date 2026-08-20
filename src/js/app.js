@@ -16,6 +16,7 @@ import { AuthManager } from './modules/AuthManager.js';
 import { ObservationsManager } from './modules/ObservationsManager.js';
 import { ObsBankGeneral } from './modules/ObsBankGeneral.js';
 import { StudentManager } from './modules/StudentManager.js';
+import { ActaManager } from './modules/ActaManager.js';
 
 // Global Instances (for debugging or legacy access if needed)
 window.store = store;
@@ -23,6 +24,7 @@ window.AppUI = AppUI;
 window.Toast = Toast;
 window.CloudStorage = CloudStorage;
 window.AuthManager = AuthManager;
+window.ActaManager = ActaManager;
 
 // Bootstrap Application
 document.addEventListener('DOMContentLoaded', () => {
@@ -45,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     store.init();
     AppUI.init(); // Initialize UI bindings (Floating Controls, etc)
     Events.init();
+    ActaManager.init();
     ObservationsManager.init();
     ObsBankGeneral.init();
     StudentManager.initTrashEvents();
