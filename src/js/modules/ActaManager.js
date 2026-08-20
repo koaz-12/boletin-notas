@@ -94,6 +94,7 @@ export const ActaManager = {
     options: {
         pasteMode: 'full', // 'full' (A15), 'namesAndGrades' (B15), 'gradesOnly' (C15)
         gradeFormat: 'literal', // 'literal' or 'numeric'
+        nameFormat: 'firstLast', // 'firstLast' (default: Nombre Apellido), 'lastFirstComma', 'lastFirst', 'original'
         includeCompetencies: true
     },
 
@@ -104,6 +105,7 @@ export const ActaManager = {
 
         this.selectPasteMode = document.getElementById('actaPasteMode');
         this.selectGradeFormat = document.getElementById('actaGradeFormat');
+        this.selectNameFormat = document.getElementById('actaNameFormat');
         this.chkCompetencies = document.getElementById('actaIncludeCompetencies');
         this.previewContainer = document.getElementById('actaPreviewTable');
         this.quickChipsContainer = document.getElementById('actaQuickChipsContainer');
@@ -140,6 +142,13 @@ export const ActaManager = {
         if (this.selectGradeFormat) {
             this.selectGradeFormat.addEventListener('change', (e) => {
                 this.options.gradeFormat = e.target.value;
+                this.renderPreview();
+            });
+        }
+
+        if (this.selectNameFormat) {
+            this.selectNameFormat.addEventListener('change', (e) => {
+                this.options.nameFormat = e.target.value;
                 this.renderPreview();
             });
         }
@@ -226,19 +235,43 @@ export const ActaManager = {
         return null;
     },
 
+    formatStudentName(studentName, info = {}) {
+        const format = this.options.nameFormat || 'firstLast';
+        const first = (info.nombres || "").trim();
+        const last = (info.apellidos || "").trim();
+
+        if (first && last) {
+            if (format === 'firstLast') return `${first} ${last}`;
+            if (format === 'lastFirstComma') return `${last}, ${first}`;
+            if (format === 'lastFirst') return `${last} ${first}`;
+            if (format === 'original') return studentName;
+        }
+
+        const raw = (studentName || "").trim();
+        if (raw.includes(',')) {
+            const parts = raw.split(',');
+            const pLast = parts[0].trim();
+            const pFirst = parts[1] ? parts[1].trim() : '';
+            if (format === 'firstLast') return pFirst ? `${pFirst} ${pLast}` : pLast;
+            if (format === 'lastFirstComma') return pFirst ? `${pLast}, ${pFirst}` : pLast;
+            if (format === 'lastFirst') return pFirst ? `${pLast} ${pFirst}` : pLast;
+            return raw;
+        }
+
+        if (first || last) {
+            return first || last;
+        }
+
+        return raw;
+    },
+
     getStudentRowData(studentName, index, state) {
         const student = state.roster[studentName];
         if (!student) return null;
 
         const info = student.studentInfo || {};
         const order = info.order || (index + 1).toString();
-
-        let fullName = studentName;
-        if (info.apellidos || info.nombres) {
-            const last = (info.apellidos || "").trim();
-            const first = (info.nombres || "").trim();
-            fullName = last && first ? `${last}, ${first}` : (last || first || studentName);
-        }
+        const fullName = this.formatStudentName(studentName, info);
 
         const studentSubjects = student.subjects || [];
         const subjectCols = [];

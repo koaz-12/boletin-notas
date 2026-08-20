@@ -1787,6 +1787,17 @@
                         </select>
                     </div>
 
+                    <!-- Formato de Nombres -->
+                    <div>
+                        <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Formato de Nombres</label>
+                        <select id="actaNameFormat" class="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold text-slate-700 focus:outline-none focus:border-emerald-500">
+                            <option value="firstLast" selected>Nombre Apellido (Juan Pérez)</option>
+                            <option value="lastFirstComma">Apellido, Nombre (Pérez, Juan)</option>
+                            <option value="lastFirst">Apellido Nombre (Pérez Juan)</option>
+                            <option value="original">Original</option>
+                        </select>
+                    </div>
+
                     <!-- Competencias Checkbox -->
                     <div class="flex items-center gap-2 pt-4">
                         <input type="checkbox" id="actaIncludeCompetencies" checked class="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer">
