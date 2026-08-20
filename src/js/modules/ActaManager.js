@@ -92,10 +92,10 @@ export const ActaManager = {
     ],
 
     options: {
-        pasteMode: 'full', // 'full' (A15), 'namesAndGrades' (B15), 'gradesOnly' (C15)
-        gradeFormat: 'literal', // 'literal' or 'numeric'
+        pasteMode: 'namesAndGrades', // 'namesAndGrades' (default: B15 - Nombres y Notas), 'full' (A15), 'gradesOnly' (C15)
+        gradeFormat: 'numeric', // 'numeric' (default: 0-100) or 'literal'
         nameFormat: 'firstLast', // 'firstLast' (default: Nombre Apellido), 'lastFirstComma', 'lastFirst', 'original'
-        includeCompetencies: true
+        includeCompetencies: false
     },
 
     init() {

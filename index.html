@@ -1772,8 +1772,8 @@
                     <div>
                         <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Punto de Pegado en Excel</label>
                         <select id="actaPasteMode" class="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold text-slate-700 focus:outline-none focus:border-emerald-500">
+                            <option value="namesAndGrades" selected>Desde Celda B15 (Nombres y Notas)</option>
                             <option value="full">Desde Celda A15 (No., Nombres y Notas)</option>
-                            <option value="namesAndGrades">Desde Celda B15 (Nombres y Notas)</option>
                             <option value="gradesOnly">Desde Celda C15 (Solo Notas)</option>
                         </select>
                     </div>
@@ -1782,8 +1782,8 @@
                     <div>
                         <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Formato de Calificación</label>
                         <select id="actaGradeFormat" class="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold text-slate-700 focus:outline-none focus:border-emerald-500">
+                            <option value="numeric" selected>Numérica (0-100)</option>
                             <option value="literal">Literal (A, B, C, D)</option>
-                            <option value="numeric">Numérica (0-100)</option>
                         </select>
                     </div>
 
@@ -1800,7 +1800,7 @@
 
                     <!-- Competencias Checkbox -->
                     <div class="flex items-center gap-2 pt-4">
-                        <input type="checkbox" id="actaIncludeCompetencies" checked class="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer">
+                        <input type="checkbox" id="actaIncludeCompetencies" class="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer">
                         <label for="actaIncludeCompetencies" class="font-bold text-slate-700 cursor-pointer select-none">
                             Incluir Conteo de Competencias (L, P, I)
                         </label>
